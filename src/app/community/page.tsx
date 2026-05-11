@@ -205,7 +205,6 @@ function getPreviewText(content: string, expanded: boolean) {
 export default function CommunityScreen() {
   const supabase = useMemo(() => createClient(), []);
 
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("semua");
@@ -272,7 +271,6 @@ export default function CommunityScreen() {
     } = await supabase.auth.getUser();
 
     const userId = user?.id ?? null;
-    setCurrentUserId(userId);
 
     const { data: postRows, error: postError } = await supabase
       .from("community_posts")
@@ -650,30 +648,19 @@ export default function CommunityScreen() {
               Ruang aman
             </p>
 
-            <h1 className="mt-[6px] truncate font-poppins text-[22px] font-extrabold leading-[28px] tracking-[-0.5px] text-black">
+            <h1 className="mt-[6px] font-poppins text-[22px] font-extrabold leading-[28px] tracking-[-0.5px] text-black">
               Interaksi Komunitas
             </h1>
           </div>
 
-          <div className="flex shrink-0 items-center gap-[8px]">
-            <button
-              type="button"
-              onClick={() => setQuery((prev) => (prev ? "" : " "))}
-              className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white text-[21px] text-black shadow-[0px_3px_12px_rgba(0,0,0,0.08)] transition active:scale-95"
-              aria-label="Cari postingan"
-            >
-              <HiMagnifyingGlass />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsCreatingPost(true)}
-              className="flex h-[42px] shrink-0 items-center justify-center gap-[6px] rounded-full bg-[#2D936C] px-[16px] font-poppins text-[13px] font-bold text-white shadow-[0px_6px_16px_rgba(45,147,108,0.24)] transition active:scale-95"
-            >
-              <HiPlus className="text-[17px]" />
-              <span>Post</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setQuery((prev) => (prev ? "" : " "))}
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-white text-[21px] text-black shadow-[0px_3px_12px_rgba(0,0,0,0.08)] transition active:scale-95"
+            aria-label="Cari postingan"
+          >
+            <HiMagnifyingGlass />
+          </button>
         </div>
 
         {query !== "" && (
@@ -704,7 +691,7 @@ export default function CommunityScreen() {
                 setShowFilterPanel((prev) => !prev);
                 setShowSortPanel(false);
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2D936C] text-white active:scale-95"
+              className="flex h-[40px] items-center gap-[8px] rounded-full bg-white px-[14px] font-poppins text-[13px] font-bold text-[#2D936C] shadow-[0px_4px_14px_rgba(0,0,0,0.06)] transition active:scale-95"
             >
               <HiFunnel />
               Filter
@@ -717,19 +704,19 @@ export default function CommunityScreen() {
                 setShowSortPanel((prev) => !prev);
                 setShowFilterPanel(false);
               }}
-              className="flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#2D936C] text-white shadow-[0px_5px_14px_rgba(45,147,108,0.18)] transition active:scale-95"
+              className="flex h-[40px] w-[40px] items-center justify-center rounded-full bg-white text-[#2D936C] shadow-[0px_4px_14px_rgba(0,0,0,0.06)] transition active:scale-95"
               aria-label="Urutkan postingan"
             >
               <HiChevronDown />
             </button>
           </div>
 
-          <p className="shrink-0 text-[12px] font-bold text-[#7A7A7A]">
+          <p className="shrink-0 rounded-full bg-[#EEF7F2] px-[10px] py-[6px] text-[11px] font-bold text-[#2D936C]">
             {filteredPosts.length} postingan
           </p>
 
           {showFilterPanel && (
-            <div className="absolute left-0 top-11 z-20 w-44 rounded-2xl bg-white p-2 shadow-xl">
+            <div className="absolute left-0 top-[48px] z-20 w-44 rounded-2xl bg-white p-2 shadow-xl">
               {FILTER_OPTIONS.map((option) => (
                 <button
                   key={option.key}
@@ -739,8 +726,8 @@ export default function CommunityScreen() {
                     setShowFilterPanel(false);
                   }}
                   className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold ${filter === option.key
-                    ? "bg-[#E6F4EA] text-[#15835A]"
-                    : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
+                      ? "bg-[#E6F4EA] text-[#15835A]"
+                      : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
                     }`}
                 >
                   <span>{option.emoji}</span>
@@ -751,7 +738,7 @@ export default function CommunityScreen() {
           )}
 
           {showSortPanel && (
-            <div className="absolute left-[110px] top-11 z-20 w-40 rounded-2xl bg-white p-2 shadow-xl">
+            <div className="absolute left-[104px] top-[48px] z-20 w-40 rounded-2xl bg-white p-2 shadow-xl">
               {SORT_OPTIONS.map((option) => (
                 <button
                   key={option.key}
@@ -761,8 +748,8 @@ export default function CommunityScreen() {
                     setShowSortPanel(false);
                   }}
                   className={`w-full rounded-xl px-3 py-2 text-left text-[12px] font-semibold ${sort === option.key
-                    ? "bg-[#E6F4EA] text-[#15835A]"
-                    : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
+                      ? "bg-[#E6F4EA] text-[#15835A]"
+                      : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
                     }`}
                 >
                   {option.label}
@@ -773,7 +760,7 @@ export default function CommunityScreen() {
         </div>
       </header>
 
-      <section className="flex-1 overflow-y-auto px-[20px] pb-[calc(112px+env(safe-area-inset-bottom))] pt-[12px]">
+      <section className="flex-1 overflow-y-auto px-[20px] pb-[calc(160px+env(safe-area-inset-bottom))] pt-[12px]">
         {isLoadingPosts ? (
           <div className="rounded-[22px] bg-white p-5 text-center text-[13px] font-semibold text-[#777] shadow-sm">
             Memuat komunitas...
@@ -888,10 +875,12 @@ export default function CommunityScreen() {
                       <button
                         key={reaction.emoji}
                         type="button"
-                        onClick={() => handleToggleReaction(post.id, reaction.emoji)}
+                        onClick={() =>
+                          handleToggleReaction(post.id, reaction.emoji)
+                        }
                         className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold transition active:scale-95 ${reaction.userReacted
-                          ? "bg-[#CFEDE1] text-[#12734E] ring-1 ring-[#2D936C]"
-                          : "bg-[#2D936C] text-white"
+                            ? "bg-[#CFEDE1] text-[#12734E] ring-1 ring-[#2D936C]"
+                            : "bg-[#2D936C] text-white"
                           }`}
                       >
                         {reaction.emoji} {reaction.count}
@@ -923,7 +912,9 @@ export default function CommunityScreen() {
                           <button
                             key={emoji}
                             type="button"
-                            onClick={() => handleToggleReaction(post.id, emoji)}
+                            onClick={() =>
+                              handleToggleReaction(post.id, emoji)
+                            }
                             className="flex h-9 w-full items-center justify-center rounded-xl bg-white text-[18px] shadow-sm transition hover:bg-[#E6F4EA] active:scale-95"
                           >
                             {emoji}
@@ -949,7 +940,9 @@ export default function CommunityScreen() {
                           <button
                             key={quickReply}
                             type="button"
-                            onClick={() => handleSendReply(post.id, quickReply)}
+                            onClick={() =>
+                              handleSendReply(post.id, quickReply)
+                            }
                             className="shrink-0 rounded-full bg-white px-3 py-2 text-[10px] font-bold text-[#17875E] shadow-sm active:scale-95"
                           >
                             {quickReply}
@@ -988,7 +981,9 @@ export default function CommunityScreen() {
                             className="rounded-2xl bg-white px-3 py-2"
                           >
                             <div className="mb-1 flex items-center gap-2">
-                              <span className="text-[14px]">{reply.avatar}</span>
+                              <span className="text-[14px]">
+                                {reply.avatar}
+                              </span>
                               <p className="text-[11px] font-bold">
                                 {reply.name}
                               </p>
@@ -1011,6 +1006,15 @@ export default function CommunityScreen() {
           </div>
         )}
       </section>
+
+      <button
+        type="button"
+        onClick={() => setIsCreatingPost(true)}
+        className="fixed bottom-[calc(92px+env(safe-area-inset-bottom))] right-[20px] z-[80] flex h-[52px] items-center justify-center gap-[8px] rounded-full bg-[#2D936C] px-[18px] font-poppins text-[14px] font-bold text-white shadow-[0px_10px_28px_rgba(45,147,108,0.32)] transition active:scale-95"
+      >
+        <HiPlus className="text-[18px]" />
+        Tulis
+      </button>
 
       {isCreatingPost && (
         <div className="fixed inset-0 z-[9999] flex items-end bg-black/40 px-0">
@@ -1063,23 +1067,23 @@ export default function CommunityScreen() {
               <div>
                 <label className="text-[12px] font-extrabold">Kategori</label>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {FILTER_OPTIONS.filter((option) => option.key !== "semua").map(
-                    (option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() =>
-                          setNewPostCategory(option.key as PostCategory)
-                        }
-                        className={`rounded-2xl border px-3 py-3 text-left text-[12px] font-bold active:scale-95 ${newPostCategory === option.key
+                  {FILTER_OPTIONS.filter(
+                    (option) => option.key !== "semua"
+                  ).map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() =>
+                        setNewPostCategory(option.key as PostCategory)
+                      }
+                      className={`rounded-2xl border px-3 py-3 text-left text-[12px] font-bold active:scale-95 ${newPostCategory === option.key
                           ? "border-[#2D936C] bg-[#E6F4EA] text-[#15835A]"
                           : "border-[#E5E5E5] bg-white text-[#222]"
-                          }`}
-                      >
-                        {option.emoji} {option.label}
-                      </button>
-                    )
-                  )}
+                        }`}
+                    >
+                      {option.emoji} {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
