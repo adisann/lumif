@@ -145,6 +145,13 @@ const DUMMY_ROUTINE_DATA: RoutineDatum[] = [
     },
 ];
 
+type MonthlyStat = {
+    month: string;
+    stress: number;
+    calm: number;
+    note?: string;
+};
+
 function CustomTooltip({
     active,
     payload,
@@ -279,8 +286,16 @@ export function CheckInTrendChart() {
                         barGap={8}
                         barCategoryGap={22}
                         onClick={(state) => {
-                            if (state?.activePayload?.[0]?.payload) {
-                                setSelectedMonth(state.activePayload[0].payload);
+                            const chartState = state as unknown as {
+                                activePayload?: Array<{
+                                    payload?: MonthlyStat;
+                                }>;
+                            };
+
+                            const payload = chartState.activePayload?.[0]?.payload;
+
+                            if (payload) {
+                                setSelectedMonth(payload);
                             }
                         }}
                     >
@@ -522,8 +537,8 @@ export default function InteractiveInsightCharts() {
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center justify-center gap-[6px] rounded-[16px] px-[10px] py-[10px] font-poppins text-[11px] font-bold transition active:scale-95 ${isActive
-                                    ? "bg-[#1B8E5A] text-white shadow-[0px_8px_18px_rgba(27,142,90,0.24)]"
-                                    : "bg-white text-[#8B8FA0] shadow-[0px_3px_14px_rgba(0,0,0,0.06)]"
+                                ? "bg-[#1B8E5A] text-white shadow-[0px_8px_18px_rgba(27,142,90,0.24)]"
+                                : "bg-white text-[#8B8FA0] shadow-[0px_3px_14px_rgba(0,0,0,0.06)]"
                                 }`}
                         >
                             {tab.icon}
