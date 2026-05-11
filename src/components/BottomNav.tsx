@@ -10,12 +10,12 @@ import {
   Zap,
   MessageCircle,
   Heart,
-  Puzzle,
   X,
   ChevronRight,
   BookOpen,
   ClipboardList
 } from "lucide-react";
+import UrgeCheckInModal from "@/components/UrgeCheckInModal";
 
 const QUICK_ACTIONS = [
   {
@@ -28,7 +28,7 @@ const QUICK_ACTIONS = [
     title: "Catat Hasrat",
     desc: "Rekam intensitas godaan",
     icon: Zap,
-    href: "/home",
+    action: "urge-checkin",
   },
   {
     title: "Latihan Napas",
@@ -54,6 +54,7 @@ export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const [showModal, setShowModal] = useState(false);
+  const [showUrgeCheckIn, setShowUrgeCheckIn] = useState(false);
 
   const navItems = [
     { path: "/home", icon: Home, label: "Home" },
@@ -84,7 +85,14 @@ export default function BottomNav() {
                   key={idx}
                   onClick={() => {
                     setShowModal(false);
-                    router.push(action.href);
+                    if (action.action === "urge-checkin") {
+                      setShowUrgeCheckIn(true);
+                      return;
+                    }
+
+                    if (action.href) {
+                      router.push(action.href);
+                    }
                   }}
                   className="flex items-center justify-between w-full group p-2 hover:bg-gray-50 rounded-2xl transition-colors"
                 >
@@ -159,6 +167,10 @@ export default function BottomNav() {
           })}
         </div>
       </div>
+      <UrgeCheckInModal
+        isOpen={showUrgeCheckIn}
+        onClose={() => setShowUrgeCheckIn(false)}
+      />
     </>
   );
 }

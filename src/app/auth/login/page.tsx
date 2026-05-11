@@ -1,9 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { HiArrowLeft, HiXMark } from "react-icons/hi2";
+import { ArrowLeft, Eye, EyeOff, Mail, ShieldCheck, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
+
+const LOGO_URL = "/assets/Logo Lumif.png";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -12,6 +17,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("lumif");
   const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,7 +35,7 @@ export default function LoginScreen() {
     setIsLoading(false);
 
     if (error) {
-      setErrorMessage("Kata sandi atau email salah");
+      setErrorMessage("Email atau kata sandi belum cocok");
       return;
     }
 
@@ -37,112 +43,161 @@ export default function LoginScreen() {
   };
 
   return (
-    <main className="relative flex h-dvh w-full flex-col overflow-hidden bg-white px-[24px] font-lexend text-black">
-      <header className="shrink-0 pt-[60px]">
+    <main className="relative flex min-h-dvh w-full flex-col overflow-y-auto bg-[#FAFAFA] px-6 font-lexend text-[#101828]">
+      <header className="z-10 flex h-[96px] shrink-0 items-center justify-between pt-6">
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex h-[48px] w-[48px] items-center justify-center rounded-[8px] border border-[#E5E5E5] bg-white active:scale-95"
+          className="flex size-12 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white shadow-sm transition active:scale-95"
+          aria-label="Kembali"
         >
-          <HiArrowLeft className="h-[20px] w-[20px]" />
+          <ArrowLeft className="size-5" />
         </button>
       </header>
 
       {errorMessage && (
-        <div className="mt-[12px] flex h-[48px] items-center justify-between rounded-[4px] bg-[#070B1A] px-[14px] text-white">
-          <div className="flex items-center gap-[10px]">
-            <span className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#B91C1C] text-[12px]">
-              ×
+        <div className="animate-fadeIn mb-3 flex min-h-12 items-center justify-between rounded-lg bg-[#111827] px-4 py-3 text-white shadow-lg">
+          <div className="flex items-center gap-3">
+            <span className="flex size-6 items-center justify-center rounded-full bg-[#DC2626]">
+              <X className="size-4" />
             </span>
-            <p className="text-[13px]">{errorMessage}</p>
+            <p className="text-sm">{errorMessage}</p>
           </div>
 
-          <button type="button" onClick={() => setErrorMessage("")}>
-            <HiXMark className="h-[20px] w-[20px]" />
+          <button
+            type="button"
+            onClick={() => setErrorMessage("")}
+            className="rounded-md p-1 transition hover:bg-white/10"
+            aria-label="Tutup pesan error"
+          >
+            <X className="size-4" />
           </button>
         </div>
       )}
 
-      <section className="mt-[34px]">
-        <div className="text-center">
-          <h1 className="font-poppins text-[24px] font-medium tracking-[-0.5px]">
-            Selamat Datang kembali
-          </h1>
-
-          <p className="mx-auto mt-[8px] max-w-[290px] text-[14px] leading-[21px]">
-            Silakan masukkan alamat email dan kata sandi kamu.
-          </p>
-        </div>
-
-        <form onSubmit={handleLogin} className="mt-[34px]">
-          <div className="space-y-[14px]">
-            <label className="block">
-              <span className="mb-[8px] block text-[14px]">Email</span>
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                placeholder="Email"
-                className="h-[46px] w-full rounded-[7px] border border-[#DADADA] px-[12px] text-[14px] outline-none focus:border-[#2D936C]"
-                required
+      <section className="flex flex-1 flex-col justify-center pb-[calc(48px+env(safe-area-inset-bottom))]">
+        <div className="animate-fadeInUp">
+          <div className="mb-10 flex justify-center">
+            <div className="relative h-[92px] w-[164px] animate-pulse-soft">
+              <Image
+                src={LOGO_URL}
+                alt="Lumif Logo"
+                fill
+                sizes="164px"
+                className="object-contain"
+                priority
+                unoptimized
               />
-            </label>
-
-            <label className="block">
-              <span className="mb-[8px] block text-[14px]">Kata Sandi</span>
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type="password"
-                placeholder="Kata Sandi"
-                className="h-[46px] w-full rounded-[7px] border border-[#DADADA] px-[12px] text-[14px] outline-none focus:border-[#2D936C]"
-                required
-              />
-            </label>
-
-            <div className="flex items-center justify-between pt-[2px]">
-              <button
-                type="button"
-                onClick={() => setRemember((prev) => !prev)}
-                className="flex items-center gap-[8px]"
-              >
-                <span
-                  className={`h-[16px] w-[16px] rounded-[3px] border ${remember
-                      ? "border-[#2D936C] bg-[#2D936C]"
-                      : "border-[#D4D4D4] bg-white"
-                    }`}
-                />
-                <span className="text-[13px]">Tetap masuk</span>
-              </button>
-
-              <button
-                type="button"
-                className="text-[13px] font-medium text-[#2D936C]"
-              >
-                Lupa kata sandi?
-              </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading || !email || !password}
-            className="mt-[36px] h-[48px] w-full rounded-[7px] bg-[#2D936C] font-poppins text-[16px] font-bold text-white disabled:opacity-60 active:scale-[0.98]"
-          >
-            {isLoading ? "Memproses..." : "Masuk"}
-          </button>
-        </form>
+          <div className="text-center">
+            <p className="mx-auto mb-3 flex w-fit items-center gap-2 rounded-full bg-[#EAF7F1] px-3 py-1 text-xs font-bold text-[#2D936C]">
+              <ShieldCheck className="size-4" />
+              Ruang amanmu
+            </p>
+            <h1 className="font-poppins text-[26px] font-bold leading-tight tracking-normal">
+              Selamat datang kembali
+            </h1>
+            <p className="mx-auto mt-4 max-w-[320px] text-sm leading-6 text-[#667085]">
+              Masuk untuk menyimpan hasil quiz, memantau progres, dan melanjutkan
+              misi hari ini.
+            </p>
+          </div>
 
-        <p className="mt-[28px] text-center text-[14px]">
-          Belum punya akun?{" "}
-          <button
-            type="button"
-            onClick={() => router.push("/auth/register")}
-            className="font-bold text-[#2D936C]"
-          >
-            Buat akun
-          </button>
-        </p>
+          <form onSubmit={handleLogin} className="mt-10">
+            <div className="space-y-5">
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold">Email</span>
+                <div className="flex h-[50px] items-center gap-3 rounded-lg border border-[#D0D5DD] bg-white px-3 shadow-sm focus-within:border-[#2D936C]">
+                  <Mail className="size-5 shrink-0 text-[#667085]" />
+                  <input
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    type="email"
+                    placeholder="nama@email.com"
+                    className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none"
+                    required
+                  />
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold">Kata sandi</span>
+                <div className="flex h-[50px] items-center gap-3 rounded-lg border border-[#D0D5DD] bg-white px-3 shadow-sm focus-within:border-[#2D936C]">
+                  <input
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Kata sandi"
+                    className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="rounded-md p-1 text-[#667085] transition hover:bg-[#F2F4F7]"
+                    aria-label={
+                      showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="size-5" />
+                    ) : (
+                      <Eye className="size-5" />
+                    )}
+                  </button>
+                </div>
+              </label>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRemember((prev) => !prev)}
+                  className="flex items-center gap-2"
+                >
+                  <span
+                    className={cn(
+                      "flex size-5 items-center justify-center rounded border transition",
+                      remember
+                        ? "border-[#2D936C] bg-[#2D936C] text-white"
+                        : "border-[#D0D5DD] bg-white",
+                    )}
+                  >
+                    {remember && <ShieldCheck className="size-3.5" />}
+                  </span>
+                  <span className="text-sm text-[#475467]">Tetap masuk</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="text-sm font-bold text-[#2D936C]"
+                >
+                  Lupa kata sandi?
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isLoading || !email || !password}
+              className="mt-10 h-[52px] w-full rounded-lg bg-[#2D936C] font-poppins text-base font-bold text-white shadow-[0_12px_28px_rgba(45,147,108,0.2)] hover:bg-[#257A5A]"
+            >
+              {isLoading ? "Memproses..." : "Masuk"}
+            </Button>
+          </form>
+
+          <p className="mt-8 text-center text-sm text-[#475467]">
+            Belum punya akun?{" "}
+            <button
+              type="button"
+              onClick={() => router.push("/onboarding")}
+              className="font-bold text-[#2D936C]"
+            >
+              Mulai onboarding
+            </button>
+          </p>
+        </div>
       </section>
     </main>
   );
