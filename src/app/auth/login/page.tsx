@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HiArrowLeft, HiXMark } from "react-icons/hi2";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("lumif");
@@ -15,7 +15,7 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (event: React.FormEvent) => {
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     setErrorMessage("");
@@ -54,7 +54,6 @@ export default function LoginScreen() {
             <span className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#B91C1C] text-[12px]">
               ×
             </span>
-
             <p className="text-[13px]">{errorMessage}</p>
           </div>
 

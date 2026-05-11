@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -39,7 +39,7 @@ function getTodayLocalDate() {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [isUpdateKondisiOpen, setIsUpdateKondisiOpen] = useState(false);
   const [isEmergencyFlowOpen, setIsEmergencyFlowOpen] = useState(false);
@@ -165,11 +165,8 @@ export default function DashboardScreen() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#FAFAFA] font-lexend">
-      {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto pb-[100px]">
-        {/* Top Header Section */}
         <div className="relative rounded-b-[40px] bg-[#2D936C] px-[24px] pb-[60px] pt-[16px]">
-          {/* User & Notification */}
           <div className="mb-[32px] flex items-center justify-between">
             <div className="flex items-center gap-[12px]">
               <div className="h-[40px] w-[40px] overflow-hidden rounded-full border-2 border-white/30 bg-white/20">
@@ -202,7 +199,6 @@ export default function DashboardScreen() {
             </button>
           </div>
 
-          {/* Main Stats */}
           <div className="mb-[32px] flex animate-fadeInUp flex-col items-center text-center">
             <h1 className="mb-[8px] font-poppins text-[36px] font-bold tracking-[-0.64px] text-white">
               3 Hari Bersih
@@ -213,7 +209,6 @@ export default function DashboardScreen() {
             </p>
           </div>
 
-          {/* Metrics Row */}
           <div className="flex justify-between gap-[12px]">
             <div className="flex-1 rounded-[20px] border border-white/10 bg-[#257B5A] p-[12px] text-center">
               <div className="mb-[4px] font-poppins text-[20px] font-bold leading-none text-white">
@@ -238,7 +233,6 @@ export default function DashboardScreen() {
           </div>
         </div>
 
-        {/* Evaluation Card */}
         <div className="relative z-10 -mt-[35px] mb-[24px] px-[24px]">
           <div className="flex items-center justify-between rounded-[24px] border border-[#F1F5F9] bg-white p-[20px] shadow-[0px_8px_30px_rgba(0,0,0,0.08)]">
             <div>
@@ -261,7 +255,6 @@ export default function DashboardScreen() {
         </div>
 
         <div className="flex flex-col gap-[24px] px-[24px]">
-          {/* Emergency Help Banner */}
           <button
             type="button"
             onClick={() => setIsEmergencyFlowOpen(true)}
@@ -281,7 +274,6 @@ export default function DashboardScreen() {
             </div>
           </button>
 
-          {/* Daily Missions Section */}
           <section>
             <h2 className="mb-[12px] font-poppins text-[14px] font-bold text-[#0F172A]">
               Misi Kecil Hari Ini
@@ -312,8 +304,8 @@ export default function DashboardScreen() {
                     <div className="flex items-center gap-[12px]">
                       <div
                         className={`rounded-lg p-2 transition-colors ${mission.completed
-                          ? "bg-green-50 text-green-600"
-                          : "bg-gray-50 text-gray-400 group-hover:bg-green-50"
+                            ? "bg-green-50 text-green-600"
+                            : "bg-gray-50 text-gray-400 group-hover:bg-green-50"
                           }`}
                       >
                         <Check className="h-5 w-5" />
@@ -321,8 +313,8 @@ export default function DashboardScreen() {
 
                       <span
                         className={`text-[14px] font-medium transition-all ${mission.completed
-                          ? "text-[#94A3B8] line-through"
-                          : "text-[#334155]"
+                            ? "text-[#94A3B8] line-through"
+                            : "text-[#334155]"
                           }`}
                       >
                         {mission.text}
@@ -331,8 +323,8 @@ export default function DashboardScreen() {
 
                     <div
                       className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${mission.completed
-                        ? "border-[#2D936C] bg-[#2D936C]"
-                        : "border-[#CBD5E1] bg-white group-hover:border-[#2D936C]"
+                          ? "border-[#2D936C] bg-[#2D936C]"
+                          : "border-[#CBD5E1] bg-white group-hover:border-[#2D936C]"
                         }`}
                     >
                       {mission.completed && (
@@ -344,7 +336,6 @@ export default function DashboardScreen() {
             </div>
           </section>
 
-          {/* Reset Button Section */}
           <button
             type="button"
             onClick={() => setIsRelapseResetOpen(true)}
@@ -358,7 +349,6 @@ export default function DashboardScreen() {
             </p>
           </button>
 
-          {/* Quick Access Menus */}
           <section>
             <h2 className="mb-[16px] font-poppins text-[14px] font-bold text-[#0F172A]">
               Menu Lainnya
@@ -411,7 +401,6 @@ export default function DashboardScreen() {
             </div>
           </section>
 
-          {/* Self-Growth Section */}
           <section className="mb-[12px]">
             <h2 className="mb-[16px] font-poppins text-[14px] font-bold text-[#0F172A]">
               Menumbuhkan Kepercayaan Diri
@@ -460,7 +449,6 @@ export default function DashboardScreen() {
         </div>
       </div>
 
-      {/* Modals */}
       <UpdateKondisiModal
         isOpen={isUpdateKondisiOpen}
         onClose={() => setIsUpdateKondisiOpen(false)}
@@ -474,7 +462,6 @@ export default function DashboardScreen() {
         onClose={() => setIsRelapseResetOpen(false)}
       />
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </div>
   );

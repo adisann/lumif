@@ -1,3 +1,4 @@
+// modules/pages
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -62,7 +63,7 @@ export default function ModulesListScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-[24px] pb-[120px]">
-        
+
         {/* Hero Section */}
         <div className="bg-[#2D936C] rounded-[24px] p-[24px] relative overflow-hidden mb-[24px]">
           <div className="relative z-10 w-[60%]">
@@ -86,8 +87,8 @@ export default function ModulesListScreen() {
           {/* Module Items */}
           <div className="flex flex-col gap-[32px] relative z-10">
             {MODULES.map((mod, index) => (
-              <div 
-                key={mod.id} 
+              <div
+                key={mod.id}
                 className="flex items-start gap-[16px] cursor-pointer"
                 onClick={() => !mod.locked && router.push(`/modules/${mod.id}`)}
               >
@@ -118,7 +119,7 @@ export default function ModulesListScreen() {
 
       {/* Floating Action Button / CTA */}
       <div className="absolute bottom-[40px] left-0 w-full px-[24px] z-20">
-        <button 
+        <button
           onClick={() => router.push('/modules/1')}
           className="w-full bg-black text-white h-[56px] rounded-[16px] font-poppins font-bold text-[16px] shadow-lg hover:bg-gray-800 transition-colors"
         >
