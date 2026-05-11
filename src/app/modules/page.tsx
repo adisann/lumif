@@ -50,17 +50,24 @@ export default function ModulesListScreen() {
     <div className="bg-[#FAFAFA] relative h-full w-full flex flex-col font-lexend overflow-hidden">
 
       {/* Top Nav */}
-      <div className="flex items-center px-[24px] pt-[20px] pb-[16px] shrink-0 bg-[#FAFAFA]">
-        <button
-          onClick={() => router.back()}
-          className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-white border border-[#e5e5e5]"
-        >
-          <HiArrowLeft className="h-[16px] w-[16px] text-black" />
-        </button>
-        <h1 className="flex-1 text-center font-poppins text-[18px] font-bold text-black tracking-[-0.36px] mr-[32px]">
-          Progres Modul
-        </h1>
-      </div>
+      <header className="shrink-0 bg-white px-[24px] pb-[18px] pt-[20px]">
+        <div className="grid grid-cols-[44px_1fr_44px] items-center">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex h-[40px] w-[40px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white text-black shadow-sm transition active:scale-95"
+            aria-label="Kembali"
+          >
+            <HiArrowLeft className="h-[18px] w-[18px]" />
+          </button>
+
+          <h1 className="text-center font-poppins text-[20px] font-bold tracking-[-0.4px] text-black">
+            Progres Modul
+          </h1>
+
+          <div aria-hidden="true" />
+        </div>
+      </header>
 
       <div className="flex-1 overflow-y-auto px-[24px] pb-[120px]">
 

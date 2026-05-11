@@ -40,50 +40,79 @@ export default function ModuleBab1Screen() {
   const router = useRouter();
 
   return (
-    <div className="bg-[#FAFAFA] relative h-full w-full flex flex-col font-lexend overflow-hidden">
-
+    <main className="relative flex h-dvh w-full flex-col overflow-hidden bg-[#FAFAFA] font-lexend text-black">
       {/* Top Nav */}
-      <div className="flex items-center px-[24px] pt-[20px] pb-[16px] shrink-0 bg-white border-b border-[#e5e5e5]">
-        <button
-          onClick={() => router.back()}
-          className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-white border border-[#e5e5e5]"
-        >
-          <HiArrowLeft className="h-[16px] w-[16px] text-black" />
-        </button>
-        <h1 className="flex-1 text-center font-poppins text-[16px] font-bold text-black tracking-[-0.32px] mr-[32px]">
-          Bab 1: Pengenalan CBT & ACT
-        </h1>
-      </div>
+      <header className="shrink-0 bg-white px-[24px] pb-[18px] pt-[20px]">
+        <div className="grid grid-cols-[44px_1fr_44px] items-center">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex h-[40px] w-[40px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white text-black shadow-sm transition active:scale-95"
+            aria-label="Kembali"
+          >
+            <HiArrowLeft className="h-[18px] w-[18px]" />
+          </button>
 
-      <div className="flex-1 overflow-y-auto px-[24px] pt-[24px] pb-[40px]">
+          <h1 className="text-center font-poppins text-[16px] font-bold leading-[22px] tracking-[-0.3px] text-black">
+            Bab 1: Pengenalan CBT & ACT
+          </h1>
+
+          <div aria-hidden="true" />
+        </div>
+      </header>
+
+      <section className="flex-1 overflow-y-auto px-[24px] pb-[calc(40px+env(safe-area-inset-bottom))] pt-[24px]">
+        <div className="mb-[22px] rounded-[24px] bg-[#2D936C] px-[20px] py-[22px] text-white shadow-[0px_10px_24px_rgba(45,147,108,0.18)]">
+          <p className="font-poppins text-[13px] font-bold text-white/75">
+            Modul 1
+          </p>
+
+          <h2 className="mt-[6px] font-poppins text-[22px] font-bold leading-[30px] tracking-[-0.5px]">
+            Pengenalan CBT & ACT
+          </h2>
+
+          <p className="mt-[8px] text-[13px] leading-[20px] text-white/80">
+            Pahami dasar pola pikir, dorongan, dan cara merespons kebiasaan
+            secara lebih sehat.
+          </p>
+        </div>
+
         {/* Lessons */}
-        <div className="flex flex-col gap-[24px]">
+        <div className="flex flex-col gap-[14px]">
           {LESSONS.map((lesson, idx) => (
-            <div
+            <article
               key={idx}
-              className="animate-fadeInUp"
+              className="animate-fadeInUp rounded-[20px] border border-[#F1F5F9] bg-white px-[16px] py-[16px] shadow-sm"
               style={{ animationDelay: `${idx * 80}ms` }}
             >
-              <h3 className="font-poppins font-bold text-[14px] text-black mb-[8px]">
-                {lesson.title}
-              </h3>
-              <p className="text-[13px] text-[#444] leading-[1.7]">
+              <div className="mb-[10px] flex items-center gap-[10px]">
+                <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#E7F3EF] font-poppins text-[13px] font-bold text-[#2D936C]">
+                  {idx + 1}
+                </div>
+
+                <h3 className="font-poppins text-[14px] font-bold leading-[20px] text-black">
+                  {lesson.title}
+                </h3>
+              </div>
+
+              <p className="text-[13px] leading-[22px] text-[#444]">
                 {lesson.content}
               </p>
-            </div>
+            </article>
           ))}
         </div>
 
         {/* Mark Complete Button */}
-        <div className="mt-[32px]">
+        <div className="mt-[28px]">
           <button
+            type="button"
             onClick={() => router.back()}
-            className="w-full bg-[#2D936C] text-white h-[48px] rounded-[12px] font-poppins font-bold text-[14px] hover:bg-[#257B5A] transition-colors active:scale-[0.98]"
+            className="h-[52px] w-full rounded-[14px] bg-[#2D936C] font-poppins text-[15px] font-bold text-white shadow-[0px_10px_24px_rgba(45,147,108,0.18)] transition hover:bg-[#257B5A] active:scale-[0.98]"
           >
             Selesai Membaca ✓
           </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

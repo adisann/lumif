@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
+import { createClient } from "@/lib/supabase/client";
 import {
   HiPlus,
   HiChatBubbleLeft,
@@ -19,6 +20,10 @@ import {
   HiHeart,
 } from "react-icons/hi2";
 
+type PostCategory = "cerita" | "support" | "darurat" | "lokasi";
+type FilterKey = "semua" | PostCategory;
+type SortKey = "terbaru" | "populer" | "ramai";
+
 type Reaction = {
   emoji: string;
   count: number;
@@ -26,17 +31,16 @@ type Reaction = {
 };
 
 type Reply = {
-  id: number;
+  id: string;
   name: string;
   time: string;
   content: string;
   avatar: string;
 };
 
-type PostCategory = "cerita" | "support" | "darurat" | "lokasi";
-
 type Post = {
-  id: number;
+  id: string;
+  userId: string | null;
   name: string;
   avatar: string;
   time: string;
@@ -49,11 +53,35 @@ type Post = {
   ownPost?: boolean;
 };
 
-type FilterKey = "semua" | PostCategory;
-type SortKey = "terbaru" | "populer" | "ramai";
+type CommunityPostRow = {
+  id: string;
+  user_id: string | null;
+  author_name: string;
+  tag: string | null;
+  category: string | null;
+  content: string;
+  created_at: string;
+};
+
+type CommunityReactionRow = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+};
+
+type CommunityReplyRow = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  author_name: string;
+  content: string;
+  created_at: string;
+};
 
 const FILTER_OPTIONS: { key: FilterKey; label: string; emoji: string }[] = [
-  { key: "semua", label: "Semua", emoji: "🌱" },
+  { key: "semua", label: "Semua", emoji: "🌐" },
   { key: "cerita", label: "Cerita", emoji: "📝" },
   { key: "support", label: "Support", emoji: "🤝" },
   { key: "darurat", label: "Darurat", emoji: "⚡" },
@@ -66,133 +94,107 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "ramai", label: "Paling Ramai" },
 ];
 
-const AVAILABLE_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🙌", "💪", "🌱"];
+const AVAILABLE_EMOJIS = ["💪", "❤️", "🌱", "🔥", "👏", "🫂", "✨", "🙏"];
 
 const QUICK_REPLIES = [
-  "Semangat, kamu nggak sendiri 🌱",
-  "Aku dukung kamu. Pelan-pelan ya 🤝",
-  "Terima kasih sudah berani cerita 🙌",
-  "Tarik napas dulu, kamu aman sekarang 💚",
+  "Semangat, kamu nggak sendiri 💪",
+  "Aku dukung kamu. Pelan-pelan ya 🌱",
+  "Terima kasih sudah berani cerita ❤️",
+  "Tarik napas dulu, kamu aman sekarang 🫂",
 ];
 
-const INITIAL_POSTS: Post[] = [
-  {
-    id: 1,
-    name: "John Doe",
-    avatar: "🧑‍🦱",
-    time: "8 jam lalu",
-    tag: "#health",
-    category: "cerita",
-    content:
-      "Aku berhasil melewati 3 bulan setelah aku terakhir PMO, rasanya seperti perjalanan melampaui neraka tapi aku berhasil. Aku tidak sabar untuk mencapai runtutan 6 bulan pertama aku di aplikasi ini. Terima kasih untuk orang-orang yang sudah support saya hingga saat ini, love you all ❤️",
-    reactions: [
-      { emoji: "👍", count: 4 },
-      { emoji: "❤️", count: 2 },
-      { emoji: "🔥", count: 10 },
-    ],
-    replies: [
-      { id: 101, name: "Nara", time: "7 jam lalu", avatar: "🌼", content: "Bangga banget sama progresmu. Lanjut pelan-pelan ya." },
-      { id: 102, name: "Raka", time: "6 jam lalu", avatar: "🦊", content: "3 bulan itu besar. Terima kasih sudah jadi inspirasi." },
-      { id: 103, name: "Mika", time: "5 jam lalu", avatar: "🐼", content: "Keren, tetap jaga rutinitasmu." },
-      { id: 104, name: "Dian", time: "4 jam lalu", avatar: "🦁", content: "Kamu bisa sampai 6 bulan." },
-      { id: 105, name: "Bimo", time: "3 jam lalu", avatar: "🐻", content: "Respect." },
-      { id: 106, name: "Luna", time: "2 jam lalu", avatar: "🌙", content: "Semoga makin kuat." },
-      { id: 107, name: "Adit", time: "1 jam lalu", avatar: "🦉", content: "Mantap." },
-    ],
-  },
-  {
-    id: 2,
-    name: "Gandi",
-    avatar: "🦅",
-    time: "2 hari lalu",
-    tag: "#care",
-    category: "support",
-    content:
-      "Kemarin runtutanku pecah 😣, aku merasa gagal mempertahankan runtutan yang aku bangun selama 2 tahun ini, tapi mulai besok aku yakin tidak akan gagal lagi. Doakan saya teman teman 😊!",
-    reactions: [
-      { emoji: "😮", count: 6 },
-      { emoji: "❤️", count: 7 },
-      { emoji: "💪", count: 3 },
-    ],
-    replies: [
-      { id: 201, name: "Reno", time: "1 hari lalu", avatar: "🧢", content: "Relapse bukan akhir. Evaluasi trigger-nya, lalu lanjut lagi." },
-      { id: 202, name: "Sari", time: "1 hari lalu", avatar: "🌻", content: "Kamu sudah punya bukti bisa bertahan lama. Mulai lagi dari hari ini." },
-    ],
-  },
-  {
-    id: 3,
-    name: "Rahmat",
-    avatar: "🧑",
-    time: "1 jam lalu",
-    tag: "#pastibisa",
-    category: "cerita",
-    content:
-      "Awalnya aku dapat aplikasi ini dari searching di Google, karena penasaran aku iseng pakai selama 3 hari. Setelah 2 minggu aku kecanduan pakai aplikasi ini. Benar-benar mengubah hidupku.",
-    reactions: [
-      { emoji: "👍", count: 8 },
-      { emoji: "😊", count: 7 },
-    ],
-    replies: [],
-  },
-  {
-    id: 4,
-    name: "Budi",
-    avatar: "🧑‍🦲",
-    time: "2 menit lalu",
-    tag: "#surabaya",
-    category: "lokasi",
-    content:
-      "Tim yang bagus dan komunitas yang hebat. Aku penasaran apa ada yang dari Surabaya? Bisa kenalan dengan aku.",
-    reactions: [{ emoji: "👋", count: 8 }],
-    replies: [],
-  },
-  {
-    id: 5,
-    name: "Kisame",
-    avatar: "🐺",
-    time: "9 jam lalu",
-    tag: "#satupersen",
-    category: "cerita",
-    content:
-      "Dulu aku pernah sekolah di dekat rumah katakanlah sekolah A, waktu itu aku masih SD dan belum tau apa-apa tentang dunia. Nilai anjlok, sering dibully, orang tua bertengkar, dan aku mulai mencari pelarian. Sekarang aku belajar bahwa pulih itu proses panjang, bukan perlombaan. Dari semua masalah itu aku diperlakukan sama oleh komunitas ini, tanpa dihakimi.",
-    reactions: [
-      { emoji: "😱", count: 10 },
-      { emoji: "💔", count: 3 },
-    ],
-    replies: Array.from({ length: 67 }, (_, index) => ({
-      id: 500 + index,
-      name: `Teman ${index + 1}`,
-      time: "hari ini",
-      avatar: "🌱",
-      content: "Terima kasih sudah cerita. Aku ikut mendukungmu.",
-    })),
-  },
-  {
-    id: 6,
-    name: "Madara",
-    avatar: "🧙",
-    time: "1 minggu lalu",
-    tag: "#Lumif4life",
-    category: "support",
-    content:
-      "Aku rasa komunitas ini sangat membantu untuk aku yang butuh sekali support dari orang untuk mendistraksi diri dari rasa relapse. Aku tidak sangka bakal menjadi salah satu jumping stone terbesar aku tahun ini dan menjadi mimpi besarku.",
-    reactions: [
-      { emoji: "🔥", count: 10 },
-      { emoji: "✊", count: 3 },
-      { emoji: "😂", count: 3 },
-    ],
-    replies: Array.from({ length: 10 }, (_, index) => ({
-      id: 600 + index,
-      name: `Supporter ${index + 1}`,
-      time: "minggu ini",
-      avatar: "💚",
-      content: "Tetap lanjut. Satu hari bersih tetap berarti.",
-    })),
-  },
-];
+function normalizeCategory(category: string | null): PostCategory {
+  if (
+    category === "cerita" ||
+    category === "support" ||
+    category === "darurat" ||
+    category === "lokasi"
+  ) {
+    return category;
+  }
+
+  return "cerita";
+}
+
+function getRelativeTime(dateValue: string) {
+  const createdAt = new Date(dateValue).getTime();
+  const now = Date.now();
+  const diffMs = now - createdAt;
+
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+
+  if (diffMs < minute) return "Baru saja";
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)} menit lalu`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)} jam lalu`;
+  if (diffMs < week) return `${Math.floor(diffMs / day)} hari lalu`;
+
+  return new Date(dateValue).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 function getTotalReactions(post: Post) {
   return post.reactions.reduce((total, reaction) => total + reaction.count, 0);
+}
+
+function groupReactionsByPost(
+  reactions: CommunityReactionRow[],
+  currentUserId: string | null
+) {
+  const grouped: Record<string, Reaction[]> = {};
+
+  reactions.forEach((reaction) => {
+    if (!grouped[reaction.post_id]) {
+      grouped[reaction.post_id] = [];
+    }
+
+    const existingReaction = grouped[reaction.post_id].find(
+      (item) => item.emoji === reaction.emoji
+    );
+
+    if (existingReaction) {
+      existingReaction.count += 1;
+
+      if (currentUserId && reaction.user_id === currentUserId) {
+        existingReaction.userReacted = true;
+      }
+
+      return;
+    }
+
+    grouped[reaction.post_id].push({
+      emoji: reaction.emoji,
+      count: 1,
+      userReacted: Boolean(currentUserId && reaction.user_id === currentUserId),
+    });
+  });
+
+  return grouped;
+}
+
+function groupRepliesByPost(replies: CommunityReplyRow[]) {
+  const grouped: Record<string, Reply[]> = {};
+
+  replies.forEach((reply) => {
+    if (!grouped[reply.post_id]) {
+      grouped[reply.post_id] = [];
+    }
+
+    grouped[reply.post_id].push({
+      id: reply.id,
+      name: reply.author_name || "Kamu",
+      avatar: reply.author_name === "Kamu" ? "🙂" : "🌱",
+      time: getRelativeTime(reply.created_at),
+      content: reply.content,
+    });
+  });
+
+  return grouped;
 }
 
 function getPreviewText(content: string, expanded: boolean) {
@@ -201,23 +203,133 @@ function getPreviewText(content: string, expanded: boolean) {
 }
 
 export default function CommunityScreen() {
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
+  const supabase = useMemo(() => createClient(), []);
+
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("semua");
   const [sort, setSort] = useState<SortKey>("terbaru");
+
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSortPanel, setShowSortPanel] = useState(false);
+
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [isSavingPost, setIsSavingPost] = useState(false);
+
   const [newPostContent, setNewPostContent] = useState("");
   const [newPostTag, setNewPostTag] = useState("#ceritaku");
-  const [newPostCategory, setNewPostCategory] = useState<PostCategory>("cerita");
+  const [newPostCategory, setNewPostCategory] =
+    useState<PostCategory>("cerita");
   const [anonymousPost, setAnonymousPost] = useState(true);
-  const [activeEmojiPickerPostId, setActiveEmojiPickerPostId] = useState<number | null>(null);
-  const [activeMenuPostId, setActiveMenuPostId] = useState<number | null>(null);
-  const [expandedPostIds, setExpandedPostIds] = useState<number[]>([]);
-  const [openedRepliesPostId, setOpenedRepliesPostId] = useState<number | null>(null);
-  const [replyDraftByPostId, setReplyDraftByPostId] = useState<Record<number, string>>({});
+
+  const [activeEmojiPickerPostId, setActiveEmojiPickerPostId] = useState<
+    string | null
+  >(null);
+  const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
+  const [expandedPostIds, setExpandedPostIds] = useState<string[]>([]);
+  const [openedRepliesPostId, setOpenedRepliesPostId] = useState<string | null>(
+    null
+  );
+  const [replyDraftByPostId, setReplyDraftByPostId] = useState<
+    Record<string, string>
+  >({});
   const [toast, setToast] = useState("");
+
+  const showToast = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 1800);
+  };
+
+  const mapRowToPost = (
+    row: CommunityPostRow,
+    userId: string | null,
+    reactionsByPost: Record<string, Reaction[]> = {},
+    repliesByPost: Record<string, Reply[]> = {}
+  ): Post => {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.author_name || "Anonim Lumif",
+      avatar: row.author_name === "Anonim Lumif" ? "🌱" : "🙂",
+      time: getRelativeTime(row.created_at),
+      tag: row.tag || "#ceritaku",
+      category: normalizeCategory(row.category),
+      content: row.content,
+      reactions: reactionsByPost[row.id] ?? [],
+      replies: repliesByPost[row.id] ?? [],
+      bookmarked: false,
+      ownPost: Boolean(userId && row.user_id === userId),
+    };
+  };
+
+  const loadPosts = async () => {
+    setIsLoadingPosts(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const userId = user?.id ?? null;
+    setCurrentUserId(userId);
+
+    const { data: postRows, error: postError } = await supabase
+      .from("community_posts")
+      .select("id, user_id, author_name, tag, category, content, created_at")
+      .order("created_at", { ascending: false });
+
+    if (postError) {
+      console.error("Gagal mengambil community_posts:", postError);
+      setIsLoadingPosts(false);
+      showToast("Gagal memuat komunitas");
+      return;
+    }
+
+    const postsData = postRows ?? [];
+    const postIds = postsData.map((post) => post.id);
+
+    let reactionsByPost: Record<string, Reaction[]> = {};
+    let repliesByPost: Record<string, Reply[]> = {};
+
+    if (postIds.length > 0) {
+      const { data: reactionRows, error: reactionError } = await supabase
+        .from("community_reactions")
+        .select("id, post_id, user_id, emoji, created_at")
+        .in("post_id", postIds);
+
+      if (reactionError) {
+        console.error("Gagal mengambil community_reactions:", reactionError);
+      } else {
+        reactionsByPost = groupReactionsByPost(reactionRows ?? [], userId);
+      }
+
+      const { data: replyRows, error: replyError } = await supabase
+        .from("community_replies")
+        .select("id, post_id, user_id, author_name, content, created_at")
+        .in("post_id", postIds)
+        .order("created_at", { ascending: false });
+
+      if (replyError) {
+        console.error("Gagal mengambil community_replies:", replyError);
+      } else {
+        repliesByPost = groupRepliesByPost(replyRows ?? []);
+      }
+    }
+
+    setPosts(
+      postsData.map((row) =>
+        mapRowToPost(row, userId, reactionsByPost, repliesByPost)
+      )
+    );
+
+    setIsLoadingPosts(false);
+  };
+
+  useEffect(() => {
+    loadPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredPosts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -234,7 +346,9 @@ export default function CommunityScreen() {
     });
 
     if (sort === "populer") {
-      return [...result].sort((a, b) => getTotalReactions(b) - getTotalReactions(a));
+      return [...result].sort(
+        (a, b) => getTotalReactions(b) - getTotalReactions(a)
+      );
     }
 
     if (sort === "ramai") {
@@ -244,31 +358,52 @@ export default function CommunityScreen() {
     return result;
   }, [filter, posts, query, sort]);
 
-  const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 1800);
-  };
-
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     const content = newPostContent.trim();
-    const tag = newPostTag.trim().startsWith("#") ? newPostTag.trim() : `#${newPostTag.trim()}`;
 
     if (!content) return;
 
-    const newPost: Post = {
-      id: Date.now(),
-      name: anonymousPost ? "Anonim Lumif" : "Kamu",
-      avatar: anonymousPost ? "🌱" : "🙂",
-      time: "Baru saja",
-      tag: tag || "#ceritaku",
-      category: newPostCategory,
-      content,
-      reactions: [],
-      replies: [],
-      ownPost: true,
-    };
+    setIsSavingPost(true);
 
-    setPosts((prev) => [newPost, ...prev]);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setIsSavingPost(false);
+      showToast("Sesi login habis. Login ulang dulu.");
+      return;
+    }
+
+    const cleanTag = newPostTag.trim();
+    const tag = cleanTag
+      ? cleanTag.startsWith("#")
+        ? cleanTag
+        : `#${cleanTag}`
+      : "#ceritaku";
+
+    const { data, error } = await supabase
+      .from("community_posts")
+      .insert({
+        user_id: user.id,
+        author_name: anonymousPost ? "Anonim Lumif" : "Kamu",
+        tag,
+        category: newPostCategory,
+        content,
+      })
+      .select("id, user_id, author_name, tag, category, content, created_at")
+      .single();
+
+    setIsSavingPost(false);
+
+    if (error) {
+      console.error("Gagal membuat community_posts:", error);
+      showToast("Gagal mengirim postingan");
+      return;
+    }
+
+    setPosts((prev) => [mapRowToPost(data, user.id, {}, {}), ...prev]);
     setNewPostContent("");
     setNewPostTag("#ceritaku");
     setNewPostCategory("cerita");
@@ -277,13 +412,34 @@ export default function CommunityScreen() {
     showToast("Postingan berhasil dikirim 🌱");
   };
 
-  const handleToggleReaction = (postId: number, emoji: string) => {
+  const handleToggleReaction = async (postId: string, emoji: string) => {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      showToast("Login dulu untuk memberi reaction");
+      return;
+    }
+
+    const targetPost = posts.find((post) => post.id === postId);
+    const targetReaction = targetPost?.reactions.find(
+      (reaction) => reaction.emoji === emoji
+    );
+    const hasReacted = Boolean(targetReaction?.userReacted);
+
     setPosts((prevPosts) =>
       prevPosts.map((post) => {
         if (post.id !== postId) return post;
 
-        const existingReactionIndex = post.reactions.findIndex((reaction) => reaction.emoji === emoji);
-        const updatedReactions = post.reactions.map((reaction) => ({ ...reaction }));
+        const existingReactionIndex = post.reactions.findIndex(
+          (reaction) => reaction.emoji === emoji
+        );
+
+        const updatedReactions = post.reactions.map((reaction) => ({
+          ...reaction,
+        }));
 
         if (existingReactionIndex >= 0) {
           const reaction = updatedReactions[existingReactionIndex];
@@ -300,32 +456,97 @@ export default function CommunityScreen() {
             reaction.userReacted = true;
           }
         } else {
-          updatedReactions.push({ emoji, count: 1, userReacted: true });
+          updatedReactions.push({
+            emoji,
+            count: 1,
+            userReacted: true,
+          });
         }
 
-        return { ...post, reactions: updatedReactions };
+        return {
+          ...post,
+          reactions: updatedReactions,
+        };
       })
     );
 
     setActiveEmojiPickerPostId(null);
+
+    if (hasReacted) {
+      const { error } = await supabase
+        .from("community_reactions")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", user.id)
+        .eq("emoji", emoji);
+
+      if (error) {
+        console.error("Gagal menghapus reaction:", error);
+        showToast("Gagal menghapus reaction");
+        await loadPosts();
+      }
+
+      return;
+    }
+
+    const { error } = await supabase.from("community_reactions").insert({
+      post_id: postId,
+      user_id: user.id,
+      emoji,
+    });
+
+    if (error) {
+      console.error("Gagal menyimpan reaction:", error);
+      showToast("Gagal menyimpan reaction");
+      await loadPosts();
+    }
   };
 
-  const handleToggleExpanded = (postId: number) => {
+  const handleToggleExpanded = (postId: string) => {
     setExpandedPostIds((prev) =>
-      prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]
+      prev.includes(postId)
+        ? prev.filter((id) => id !== postId)
+        : [...prev, postId]
     );
   };
 
-  const handleToggleBookmark = (postId: number) => {
+  const handleToggleBookmark = (postId: string) => {
     setPosts((prev) =>
-      prev.map((post) => (post.id === postId ? { ...post, bookmarked: !post.bookmarked } : post))
+      prev.map((post) =>
+        post.id === postId ? { ...post, bookmarked: !post.bookmarked } : post
+      )
     );
+
     setActiveMenuPostId(null);
+    showToast("Status simpan diperbarui");
   };
 
-  const handleDeletePost = (postId: number) => {
-    setPosts((prev) => prev.filter((post) => post.id !== postId));
+  const handleDeletePost = async (postId: string) => {
+    const post = posts.find((item) => item.id === postId);
+
+    if (!post?.ownPost) {
+      showToast("Kamu hanya bisa menghapus postingan sendiri");
+      setActiveMenuPostId(null);
+      return;
+    }
+
+    const previousPosts = posts;
+
+    setPosts((prev) => prev.filter((item) => item.id !== postId));
     setActiveMenuPostId(null);
+
+    const { error } = await supabase
+      .from("community_posts")
+      .delete()
+      .eq("id", postId);
+
+    if (error) {
+      console.error("Gagal menghapus community_posts:", error);
+      setPosts(previousPosts);
+      showToast("Gagal menghapus postingan");
+      return;
+    }
+
     showToast("Postingan kamu dihapus");
   };
 
@@ -334,16 +555,27 @@ export default function CommunityScreen() {
     showToast("Laporan diterima. Terima kasih sudah menjaga komunitas.");
   };
 
-  const handleOpenReplies = (postId: number) => {
+  const handleOpenReplies = (postId: string) => {
     setOpenedRepliesPostId((prev) => (prev === postId ? null : postId));
   };
 
-  const handleSendReply = (postId: number, forcedText?: string) => {
+  const handleSendReply = async (postId: string, forcedText?: string) => {
     const content = (forcedText ?? replyDraftByPostId[postId] ?? "").trim();
+
     if (!content) return;
 
-    const newReply: Reply = {
-      id: Date.now(),
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      showToast("Login dulu untuk membalas");
+      return;
+    }
+
+    const optimisticReply: Reply = {
+      id: crypto.randomUUID(),
       name: "Kamu",
       avatar: "🙂",
       time: "Baru saja",
@@ -352,42 +584,100 @@ export default function CommunityScreen() {
 
     setPosts((prev) =>
       prev.map((post) =>
-        post.id === postId ? { ...post, replies: [newReply, ...post.replies] } : post
+        post.id === postId
+          ? { ...post, replies: [optimisticReply, ...post.replies] }
+          : post
       )
     );
 
-    setReplyDraftByPostId((prev) => ({ ...prev, [postId]: "" }));
+    setReplyDraftByPostId((prev) => ({
+      ...prev,
+      [postId]: "",
+    }));
+
     setOpenedRepliesPostId(postId);
+
+    const { data, error } = await supabase
+      .from("community_replies")
+      .insert({
+        post_id: postId,
+        user_id: user.id,
+        author_name: "Kamu",
+        content,
+      })
+      .select("id, post_id, user_id, author_name, content, created_at")
+      .single();
+
+    if (error) {
+      console.error("Gagal menyimpan community_replies:", error);
+      showToast("Gagal menyimpan balasan");
+      await loadPosts();
+      return;
+    }
+
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+
+        const withoutOptimistic = post.replies.filter(
+          (reply) => reply.id !== optimisticReply.id
+        );
+
+        const savedReply: Reply = {
+          id: data.id,
+          name: data.author_name || "Kamu",
+          avatar: "🙂",
+          time: getRelativeTime(data.created_at),
+          content: data.content,
+        };
+
+        return {
+          ...post,
+          replies: [savedReply, ...withoutOptimistic],
+        };
+      })
+    );
+
+    showToast("Balasan dikirim 🌱");
   };
 
   return (
     <main className="relative flex h-dvh w-full flex-col overflow-hidden bg-[#FAFAFA] font-lexend text-black">
-      <header className="shrink-0 bg-white px-4 pb-3 pt-5">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Avatar komunitas"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#9BD4F7] text-2xl active:scale-95"
-          >
-            🐻
-          </button>
+      <header className="shrink-0 bg-[#FAFAFA] px-[20px] pb-[14px] pt-[20px]">
+        <div className="mb-[18px] flex items-start justify-between gap-[12px]">
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-semibold leading-none text-[#7A7A7A]">
+              Ruang aman
+            </p>
 
-          <h1 className="flex-1 text-center font-poppins text-[20px] font-extrabold tracking-[-0.5px]">
-            Interaksi Komunitas
-          </h1>
+            <h1 className="mt-[6px] truncate font-poppins text-[22px] font-extrabold leading-[28px] tracking-[-0.5px] text-black">
+              Interaksi Komunitas
+            </h1>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setQuery((prev) => (prev ? "" : " "))}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-xl active:scale-95"
-            aria-label="Cari postingan"
-          >
-            <HiMagnifyingGlass />
-          </button>
+          <div className="flex shrink-0 items-center gap-[8px]">
+            <button
+              type="button"
+              onClick={() => setQuery((prev) => (prev ? "" : " "))}
+              className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white text-[21px] text-black shadow-[0px_3px_12px_rgba(0,0,0,0.08)] transition active:scale-95"
+              aria-label="Cari postingan"
+            >
+              <HiMagnifyingGlass />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCreatingPost(true)}
+              className="flex h-[42px] shrink-0 items-center justify-center gap-[6px] rounded-full bg-[#2D936C] px-[16px] font-poppins text-[13px] font-bold text-white shadow-[0px_6px_16px_rgba(45,147,108,0.24)] transition active:scale-95"
+            >
+              <HiPlus className="text-[17px]" />
+              <span>Post</span>
+            </button>
+          </div>
         </div>
 
         {query !== "" && (
-          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3">
+          <div className="mb-3 flex h-11 items-center gap-2 rounded-2xl bg-white px-4 shadow-sm">
             <HiMagnifyingGlass className="text-[#7A7A7A]" />
             <input
               value={query}
@@ -396,326 +686,376 @@ export default function CommunityScreen() {
               className="w-full bg-transparent text-[13px] outline-none placeholder:text-[#9A9A9A]"
               autoFocus
             />
-            <button type="button" onClick={() => setQuery("")} className="text-[#7A7A7A]">
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="text-[#7A7A7A]"
+            >
               <HiXMark />
             </button>
           </div>
         )}
-      </header>
 
-      <section className="relative z-20 flex shrink-0 items-center justify-between bg-white px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setIsCreatingPost(true)}
-          className="flex items-center gap-1 rounded-full bg-[#2D936C] px-4 py-2 text-[12px] font-bold text-white active:scale-95"
-        >
-          <HiPlus className="text-[14px]" /> Post
-        </button>
-
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="relative flex items-center justify-between gap-[12px]">
+          <div className="flex min-w-0 items-center gap-[8px]">
             <button
               type="button"
               onClick={() => {
                 setShowFilterPanel((prev) => !prev);
                 setShowSortPanel(false);
               }}
-              className="flex items-center gap-2 rounded-full bg-[#2D936C] px-4 py-2 text-[12px] font-bold text-white active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2D936C] text-white active:scale-95"
             >
-              <HiFunnel /> Filter <HiChevronDown />
+              <HiFunnel />
+              Filter
+              <HiChevronDown />
             </button>
 
-            {showFilterPanel && (
-              <div className="absolute right-0 top-11 w-44 rounded-2xl border border-[#E5E5E5] bg-white p-2 shadow-xl">
-                {FILTER_OPTIONS.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => {
-                      setFilter(option.key);
-                      setShowFilterPanel(false);
-                    }}
-                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold ${filter === option.key ? "bg-[#E6F4EA] text-[#15835A]" : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
-                      }`}
-                  >
-                    <span>{option.emoji}</span>
-                    <span>{option.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
             <button
               type="button"
               onClick={() => {
                 setShowSortPanel((prev) => !prev);
                 setShowFilterPanel(false);
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2D936C] text-white active:scale-95"
+              className="flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#2D936C] text-white shadow-[0px_5px_14px_rgba(45,147,108,0.18)] transition active:scale-95"
               aria-label="Urutkan postingan"
             >
               <HiChevronDown />
             </button>
-
-            {showSortPanel && (
-              <div className="absolute right-0 top-11 w-44 rounded-2xl border border-[#E5E5E5] bg-white p-2 shadow-xl">
-                {SORT_OPTIONS.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => {
-                      setSort(option.key);
-                      setShowSortPanel(false);
-                    }}
-                    className={`w-full rounded-xl px-3 py-2 text-left text-[12px] font-semibold ${sort === option.key ? "bg-[#E6F4EA] text-[#15835A]" : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
-                      }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-        </div>
-      </section>
 
-      <section className="flex-1 overflow-y-auto pb-[calc(104px+env(safe-area-inset-bottom))]">
-        {filteredPosts.length === 0 ? (
-          <div className="mx-6 mt-12 rounded-3xl bg-white p-8 text-center shadow-sm">
-            <p className="text-4xl">🔎</p>
-            <h2 className="mt-3 font-poppins text-lg font-extrabold">Belum ada postingan</h2>
-            <p className="mt-2 text-[13px] leading-6 text-[#666]">
-              Coba filter lain atau jadilah orang pertama yang memulai percakapan.
+          <p className="shrink-0 text-[12px] font-bold text-[#7A7A7A]">
+            {filteredPosts.length} postingan
+          </p>
+
+          {showFilterPanel && (
+            <div className="absolute left-0 top-11 z-20 w-44 rounded-2xl bg-white p-2 shadow-xl">
+              {FILTER_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => {
+                    setFilter(option.key);
+                    setShowFilterPanel(false);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold ${filter === option.key
+                    ? "bg-[#E6F4EA] text-[#15835A]"
+                    : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
+                    }`}
+                >
+                  <span>{option.emoji}</span>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showSortPanel && (
+            <div className="absolute left-[110px] top-11 z-20 w-40 rounded-2xl bg-white p-2 shadow-xl">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => {
+                    setSort(option.key);
+                    setShowSortPanel(false);
+                  }}
+                  className={`w-full rounded-xl px-3 py-2 text-left text-[12px] font-semibold ${sort === option.key
+                    ? "bg-[#E6F4EA] text-[#15835A]"
+                    : "text-[#1F1F1F] hover:bg-[#F5F5F5]"
+                    }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+
+      <section className="flex-1 overflow-y-auto px-[20px] pb-[calc(112px+env(safe-area-inset-bottom))] pt-[12px]">
+        {isLoadingPosts ? (
+          <div className="rounded-[22px] bg-white p-5 text-center text-[13px] font-semibold text-[#777] shadow-sm">
+            Memuat komunitas...
+          </div>
+        ) : filteredPosts.length === 0 ? (
+          <div className="rounded-[22px] bg-white p-5 text-center shadow-sm">
+            <p className="text-[36px]">🌱</p>
+            <h2 className="mt-2 font-poppins text-[16px] font-bold">
+              Belum ada postingan
+            </h2>
+            <p className="mt-1 text-[12px] leading-5 text-[#777]">
+              Coba filter lain atau jadilah orang pertama yang memulai
+              percakapan.
             </p>
           </div>
         ) : (
-          filteredPosts.map((post) => {
-            const isExpanded = expandedPostIds.includes(post.id);
-            const isRepliesOpen = openedRepliesPostId === post.id;
-            const shouldShowReadMore = post.content.length > 170;
+          <div className="flex flex-col gap-4">
+            {filteredPosts.map((post) => {
+              const isExpanded = expandedPostIds.includes(post.id);
+              const isRepliesOpen = openedRepliesPostId === post.id;
+              const shouldShowReadMore = post.content.length > 170;
 
-            return (
-              <article key={post.id} className="border-b border-[#DADADA] bg-white px-3 py-4">
-                <div className="flex items-start gap-2">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E6F2FF] text-[17px]">
-                    {post.avatar}
-                  </div>
+              return (
+                <article
+                  key={post.id}
+                  className="rounded-[22px] bg-white p-4 shadow-[0px_3px_16px_rgba(0,0,0,0.08)]"
+                >
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E6F4EA] text-[22px]">
+                        {post.avatar}
+                      </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 pr-7">
-                      <h2 className="truncate font-poppins text-[13px] font-extrabold leading-none">{post.name}</h2>
-                      <span className="shrink-0 text-[7px] font-medium text-[#8F8F8F]">{post.time}</span>
-                      <span className="rounded-full bg-[#DDF1E9] px-1.5 py-0.5 text-[8px] font-bold text-[#26946A]">
-                        {post.tag}
-                      </span>
-                    </div>
-
-                    <p className="mt-1.5 text-[11.5px] leading-[1.45] tracking-[-0.1px] text-[#141414]">
-                      {getPreviewText(post.content, isExpanded)}{" "}
-                      {shouldShowReadMore && (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleExpanded(post.id)}
-                          className="font-extrabold text-[#17875E]"
-                        >
-                          {isExpanded ? "Tutup" : "Baca Selengkapnya"}
-                        </button>
-                      )}
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      {post.reactions.map((reaction) => (
-                        <button
-                          key={reaction.emoji}
-                          type="button"
-                          onClick={() => handleToggleReaction(post.id, reaction.emoji)}
-                          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold transition active:scale-95 ${reaction.userReacted
-                              ? "bg-[#CFEDE1] text-[#12734E] ring-1 ring-[#2D936C]"
-                              : "bg-[#2D936C] text-white"
-                            }`}
-                        >
-                          <span>{reaction.emoji}</span>
-                          <span>{reaction.count}</span>
-                        </button>
-                      ))}
-
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveEmojiPickerPostId((prev) => (prev === post.id ? null : post.id))
-                          }
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F0F0F0] text-[#555] active:scale-95"
-                          aria-label="Tambah reaksi"
-                        >
-                          <HiOutlineFaceSmile className="text-[14px]" />
-                        </button>
-
-                        {activeEmojiPickerPostId === post.id && (
-                          <div className="absolute left-0 top-8 z-30 grid w-[180px] grid-cols-5 gap-1 rounded-2xl border border-[#E5E5E5] bg-white p-2 shadow-xl">
-                            {AVAILABLE_EMOJIS.map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => handleToggleReaction(post.id, emoji)}
-                                className="flex h-8 w-8 items-center justify-center rounded-xl text-lg hover:bg-[#F4F4F4] active:scale-95"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                      <div className="min-w-0">
+                        <h2 className="truncate font-poppins text-[14px] font-extrabold text-black">
+                          {post.name}
+                        </h2>
+                        <p className="mt-0.5 text-[10px] font-semibold text-[#8A8A8A]">
+                          {post.time} · {post.tag}
+                        </p>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOpenReplies(post.id)}
-                      className="mt-2 flex items-center gap-1 text-[10px] font-extrabold text-[#17875E] active:scale-95"
-                    >
-                      <HiChatBubbleLeft /> {post.replies.length} balasan
-                    </button>
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setActiveMenuPostId((prev) => (prev === post.id ? null : post.id))}
-                      className="flex h-7 w-7 items-center justify-center rounded-full active:scale-95"
-                      aria-label="Menu postingan"
-                    >
-                      <HiEllipsisHorizontal className="text-[20px]" />
-                    </button>
-
-                    {activeMenuPostId === post.id && (
-                      <div className="absolute right-0 top-8 z-30 w-40 rounded-2xl border border-[#E5E5E5] bg-white p-2 shadow-xl">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleBookmark(post.id)}
-                          className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold hover:bg-[#F5F5F5]"
-                        >
-                          {post.bookmarked ? <HiBookmark /> : <HiOutlineBookmark />}
-                          {post.bookmarked ? "Tersimpan" : "Simpan"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleReportPost}
-                          className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold hover:bg-[#F5F5F5]"
-                        >
-                          <HiFlag /> Laporkan
-                        </button>
-                        {post.ownPost && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePost(post.id)}
-                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold text-red-600 hover:bg-red-50"
-                          >
-                            <HiTrash /> Hapus
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {isRepliesOpen && (
-                  <div className="ml-9 mt-4 rounded-3xl bg-[#F7F7F7] p-3">
-                    <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-                      {QUICK_REPLIES.map((quickReply) => (
-                        <button
-                          key={quickReply}
-                          type="button"
-                          onClick={() => handleSendReply(post.id, quickReply)}
-                          className="shrink-0 rounded-full bg-white px-3 py-2 text-[10px] font-bold text-[#17875E] shadow-sm active:scale-95"
-                        >
-                          {quickReply}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2">
-                      <input
-                        value={replyDraftByPostId[post.id] ?? ""}
-                        onChange={(event) =>
-                          setReplyDraftByPostId((prev) => ({ ...prev, [post.id]: event.target.value }))
-                        }
-                        placeholder="Tulis balasan suportif..."
-                        className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-[#999]"
-                      />
+                    <div className="relative">
                       <button
                         type="button"
-                        onClick={() => handleSendReply(post.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2D936C] text-white active:scale-95 disabled:bg-[#CFCFCF]"
-                        disabled={!(replyDraftByPostId[post.id] ?? "").trim()}
-                        aria-label="Kirim balasan"
+                        onClick={() =>
+                          setActiveMenuPostId((prev) =>
+                            prev === post.id ? null : post.id
+                          )
+                        }
+                        className="flex h-7 w-7 items-center justify-center rounded-full active:scale-95"
+                        aria-label="Menu postingan"
                       >
-                        <HiPaperAirplane />
+                        <HiEllipsisHorizontal className="text-[20px]" />
                       </button>
-                    </div>
 
-                    <div className="mt-3 space-y-3">
-                      {post.replies.slice(0, 4).map((reply) => (
-                        <div key={reply.id} className="flex gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-base">
-                            {reply.avatar}
-                          </div>
-                          <div className="min-w-0 flex-1 rounded-2xl bg-white px-3 py-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] font-extrabold">{reply.name}</span>
-                              <span className="text-[8px] text-[#888]">{reply.time}</span>
-                            </div>
-                            <p className="mt-1 text-[11px] leading-5 text-[#333]">{reply.content}</p>
-                          </div>
+                      {activeMenuPostId === post.id && (
+                        <div className="absolute right-0 top-8 z-20 w-40 rounded-2xl bg-white p-2 shadow-xl">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBookmark(post.id)}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold hover:bg-[#F5F5F5]"
+                          >
+                            {post.bookmarked ? (
+                              <HiBookmark />
+                            ) : (
+                              <HiOutlineBookmark />
+                            )}
+                            {post.bookmarked ? "Tersimpan" : "Simpan"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleReportPost}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold hover:bg-[#F5F5F5]"
+                          >
+                            <HiFlag />
+                            Laporkan
+                          </button>
+
+                          {post.ownPost && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePost(post.id)}
+                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold text-red-600 hover:bg-red-50"
+                            >
+                              <HiTrash />
+                              Hapus
+                            </button>
+                          )}
                         </div>
-                      ))}
-
-                      {post.replies.length > 4 && (
-                        <p className="text-center text-[10px] font-bold text-[#17875E]">
-                          +{post.replies.length - 4} balasan lainnya
-                        </p>
                       )}
                     </div>
                   </div>
-                )}
-              </article>
-            );
-          })
+
+                  <p className="whitespace-pre-line text-[13px] leading-6 text-[#1F1F1F]">
+                    {getPreviewText(post.content, isExpanded)}{" "}
+                    {shouldShowReadMore && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleExpanded(post.id)}
+                        className="font-extrabold text-[#17875E]"
+                      >
+                        {isExpanded ? "Tutup" : "Baca Selengkapnya"}
+                      </button>
+                    )}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {post.reactions.map((reaction) => (
+                      <button
+                        key={reaction.emoji}
+                        type="button"
+                        onClick={() => handleToggleReaction(post.id, reaction.emoji)}
+                        className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold transition active:scale-95 ${reaction.userReacted
+                          ? "bg-[#CFEDE1] text-[#12734E] ring-1 ring-[#2D936C]"
+                          : "bg-[#2D936C] text-white"
+                          }`}
+                      >
+                        {reaction.emoji} {reaction.count}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveEmojiPickerPostId((prev) =>
+                          prev === post.id ? null : post.id
+                        )
+                      }
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F0F0F0] text-[#555] transition active:scale-95"
+                      aria-label="Tambah reaksi"
+                    >
+                      <HiOutlineFaceSmile />
+                    </button>
+                  </div>
+
+                  {activeEmojiPickerPostId === post.id && (
+                    <div className="mt-3 rounded-[18px] border border-[#E8E8E8] bg-[#FAFAFA] p-3">
+                      <p className="mb-2 text-[11px] font-bold text-[#777]">
+                        Pilih dukungan
+                      </p>
+
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVAILABLE_EMOJIS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => handleToggleReaction(post.id, emoji)}
+                            className="flex h-9 w-full items-center justify-center rounded-xl bg-white text-[18px] shadow-sm transition hover:bg-[#E6F4EA] active:scale-95"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenReplies(post.id)}
+                    className="mt-3 flex items-center gap-1 text-[10px] font-extrabold text-[#17875E] active:scale-95"
+                  >
+                    <HiChatBubbleLeft />
+                    {post.replies.length} balasan
+                  </button>
+
+                  {isRepliesOpen && (
+                    <div className="mt-3 rounded-2xl bg-[#F6F7F7] p-3">
+                      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+                        {QUICK_REPLIES.map((quickReply) => (
+                          <button
+                            key={quickReply}
+                            type="button"
+                            onClick={() => handleSendReply(post.id, quickReply)}
+                            className="shrink-0 rounded-full bg-white px-3 py-2 text-[10px] font-bold text-[#17875E] shadow-sm active:scale-95"
+                          >
+                            {quickReply}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="mb-3 flex items-center gap-2 rounded-2xl bg-white px-3 py-2">
+                        <input
+                          value={replyDraftByPostId[post.id] ?? ""}
+                          onChange={(event) =>
+                            setReplyDraftByPostId((prev) => ({
+                              ...prev,
+                              [post.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Tulis balasan suportif..."
+                          className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-[#999]"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => handleSendReply(post.id)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2D936C] text-white active:scale-95 disabled:bg-[#CFCFCF]"
+                          disabled={!(replyDraftByPostId[post.id] ?? "").trim()}
+                          aria-label="Kirim balasan"
+                        >
+                          <HiPaperAirplane />
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        {post.replies.slice(0, 4).map((reply) => (
+                          <div
+                            key={reply.id}
+                            className="rounded-2xl bg-white px-3 py-2"
+                          >
+                            <div className="mb-1 flex items-center gap-2">
+                              <span className="text-[14px]">{reply.avatar}</span>
+                              <p className="text-[11px] font-bold">
+                                {reply.name}
+                              </p>
+                              <p className="text-[9px] font-semibold text-[#999]">
+                                {reply.time}
+                              </p>
+                            </div>
+
+                            <p className="text-[11px] leading-5 text-[#333]">
+                              {reply.content}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
         )}
       </section>
 
       {isCreatingPost && (
-        <div className="fixed inset-0 z-[9999] flex items-end bg-black/40">
+        <div className="fixed inset-0 z-[9999] flex items-end bg-black/40 px-0">
           <div className="flex max-h-[calc(100dvh-24px)] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#ECECEC] px-5 py-4">
-              <div>
-                <h2 className="font-poppins text-[17px] font-extrabold">Buat Postingan</h2>
-                <p className="mt-1 text-[11px] text-[#777]">Bagikan cerita dengan aman dan suportif.</p>
+            <div className="shrink-0 border-b border-[#ECECEC] px-5 pb-4 pt-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-poppins text-[20px] font-extrabold">
+                    Buat Postingan
+                  </h2>
+                  <p className="mt-1 text-[12px] leading-5 text-[#666]">
+                    Bagikan cerita dengan aman dan suportif.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingPost(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F1F1] text-xl active:scale-95"
+                  aria-label="Tutup modal"
+                  disabled={isSavingPost}
+                >
+                  <HiXMark />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsCreatingPost(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F1F1] text-xl active:scale-95"
-                aria-label="Tutup modal"
-              >
-                <HiXMark />
-              </button>
             </div>
 
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-              <div className="flex items-center justify-between rounded-2xl bg-[#E6F4EA] px-4 py-3">
+              <div className="flex items-center justify-between rounded-2xl bg-[#F6F7F7] px-4 py-3">
                 <div>
-                  <p className="text-[12px] font-extrabold text-[#15835A]">Posting anonim</p>
-                  <p className="mt-0.5 text-[10px] text-[#327E62]">Nama kamu tidak ditampilkan.</p>
+                  <p className="text-[13px] font-extrabold">Posting anonim</p>
+                  <p className="mt-0.5 text-[11px] text-[#777]">
+                    Nama kamu tidak ditampilkan.
+                  </p>
                 </div>
+
                 <button
                   type="button"
                   onClick={() => setAnonymousPost((prev) => !prev)}
-                  className={`h-7 w-12 rounded-full p-1 transition ${anonymousPost ? "bg-[#2D936C]" : "bg-[#CFCFCF]"}`}
+                  className={`h-7 w-12 rounded-full p-1 transition ${anonymousPost ? "bg-[#2D936C]" : "bg-[#CFCFCF]"
+                    }`}
                 >
                   <span
-                    className={`block h-5 w-5 rounded-full bg-white transition ${anonymousPost ? "translate-x-5" : "translate-x-0"}`}
+                    className={`block h-5 w-5 rounded-full bg-white transition ${anonymousPost ? "translate-x-5" : "translate-x-0"
+                      }`}
                   />
                 </button>
               </div>
@@ -723,19 +1063,23 @@ export default function CommunityScreen() {
               <div>
                 <label className="text-[12px] font-extrabold">Kategori</label>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {FILTER_OPTIONS.filter((option) => option.key !== "semua").map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => setNewPostCategory(option.key as PostCategory)}
-                      className={`rounded-2xl border px-3 py-3 text-left text-[12px] font-bold active:scale-95 ${newPostCategory === option.key
+                  {FILTER_OPTIONS.filter((option) => option.key !== "semua").map(
+                    (option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() =>
+                          setNewPostCategory(option.key as PostCategory)
+                        }
+                        className={`rounded-2xl border px-3 py-3 text-left text-[12px] font-bold active:scale-95 ${newPostCategory === option.key
                           ? "border-[#2D936C] bg-[#E6F4EA] text-[#15835A]"
                           : "border-[#E5E5E5] bg-white text-[#222]"
-                        }`}
-                    >
-                      <span className="mr-1">{option.emoji}</span> {option.label}
-                    </button>
-                  ))}
+                          }`}
+                      >
+                        {option.emoji} {option.label}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
@@ -750,7 +1094,9 @@ export default function CommunityScreen() {
               </div>
 
               <div>
-                <label className="text-[12px] font-extrabold">Isi postingan</label>
+                <label className="text-[12px] font-extrabold">
+                  Isi postingan
+                </label>
                 <textarea
                   value={newPostContent}
                   onChange={(event) => setNewPostContent(event.target.value)}
@@ -765,10 +1111,11 @@ export default function CommunityScreen() {
               <button
                 type="button"
                 onClick={handleCreatePost}
-                disabled={!newPostContent.trim()}
+                disabled={!newPostContent.trim() || isSavingPost}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2D936C] py-4 font-poppins text-[15px] font-extrabold text-white active:scale-[0.98] disabled:bg-[#CFCFCF]"
               >
-                <HiHeart /> Kirim ke Komunitas
+                <HiHeart />
+                {isSavingPost ? "Mengirim..." : "Kirim ke Komunitas"}
               </button>
             </div>
           </div>

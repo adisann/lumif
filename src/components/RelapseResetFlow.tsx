@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   HiArrowLeft,
   HiBolt,
   HiChatBubbleOvalLeftEllipsis,
   HiCheck,
-  HiCheckCircle,
   HiHeart,
-  HiXMark,
 } from "react-icons/hi2";
+import { createClient } from "@/lib/supabase/client";
 
 type RelapseStep = "comfort" | "triggers" | "action" | "success";
 
@@ -50,25 +49,89 @@ export default function RelapseResetFlow({
   isOpen,
   onClose,
 }: RelapseResetFlowProps) {
+  const supabase = useMemo(() => createClient(), []);
+
   const [currentStep, setCurrentStep] = useState<RelapseStep>("comfort");
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     if (isOpen) {
       setCurrentStep("comfort");
       setSelectedTrigger(null);
       setSelectedAction(null);
+      setIsSaving(false);
+      setErrorMessage("");
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const selectedTriggerData = TRIGGERS.find(
+    (trigger) => trigger.id === selectedTrigger
+  );
+
+  const selectedActionData = ACTION_ITEMS.find(
+    (action) => action.id === selectedAction
+  );
+
   const handleClose = () => {
+    if (isSaving) return;
+
     setCurrentStep("comfort");
     setSelectedTrigger(null);
     setSelectedAction(null);
+    setIsSaving(false);
+    setErrorMessage("");
     onClose();
+  };
+
+  const handleSaveRelapseLog = async () => {
+    if (!selectedTriggerData || !selectedActionData) {
+      setErrorMessage("Pilih pemicu dan aksi kecil dulu.");
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage("");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setIsSaving(false);
+      setErrorMessage("Sesi login habis. Silakan login ulang.");
+      return;
+    }
+
+    const note = JSON.stringify({
+      trigger_id: selectedTriggerData.id,
+      trigger_label: selectedTriggerData.label,
+      action_id: selectedActionData.id,
+      action_label: selectedActionData.label,
+      flow_source: "relapse_reset_flow",
+    });
+
+    const { error } = await supabase.from("relapse_logs").insert({
+      user_id: user.id,
+      trigger: selectedTriggerData.label,
+      action_taken: selectedActionData.label,
+      note,
+    });
+
+    setIsSaving(false);
+
+    if (error) {
+      console.error("Gagal menyimpan relapse_logs:", error);
+      setErrorMessage("Gagal menyimpan reset. Coba lagi.");
+      return;
+    }
+
+    setCurrentStep("success");
   };
 
   return (
@@ -77,6 +140,12 @@ export default function RelapseResetFlow({
         <ResetHeader onBack={handleClose} />
 
         <main className="min-h-0 flex-1 overflow-y-auto px-[24px] pb-[calc(32px+env(safe-area-inset-bottom))]">
+          {errorMessage && (
+            <div className="mb-[14px] rounded-[16px] border border-red-100 bg-red-50 px-[14px] py-[12px] text-[13px] font-medium leading-[18px] text-red-600">
+              {errorMessage}
+            </div>
+          )}
+
           {currentStep === "comfort" && (
             <ComfortStep onNext={() => setCurrentStep("triggers")} />
           )}
@@ -84,7 +153,10 @@ export default function RelapseResetFlow({
           {currentStep === "triggers" && (
             <TriggerStep
               selectedTrigger={selectedTrigger}
-              onSelect={(triggerId) => setSelectedTrigger(triggerId)}
+              onSelect={(triggerId) => {
+                setSelectedTrigger(triggerId);
+                setErrorMessage("");
+              }}
               onNext={() => setCurrentStep("action")}
             />
           )}
@@ -92,8 +164,12 @@ export default function RelapseResetFlow({
           {currentStep === "action" && (
             <ActionStep
               selectedAction={selectedAction}
-              onSelect={(actionId) => setSelectedAction(actionId)}
-              onNext={() => setCurrentStep("success")}
+              onSelect={(actionId) => {
+                setSelectedAction(actionId);
+                setErrorMessage("");
+              }}
+              onNext={handleSaveRelapseLog}
+              isSaving={isSaving}
             />
           )}
 
@@ -200,8 +276,8 @@ function TriggerStep({
               type="button"
               onClick={() => onSelect(trigger.id)}
               className={`flex min-h-[118px] flex-col items-center justify-center rounded-[8px] bg-white px-[12px] py-[16px] shadow-[0px_8px_26px_rgba(0,0,0,0.10)] transition active:scale-[0.97] ${isSelected
-                ? "ring-2 ring-[#178B5D] ring-offset-2"
-                : "ring-0"
+                  ? "ring-2 ring-[#178B5D] ring-offset-2"
+                  : "ring-0"
                 }`}
             >
               <span className="text-[36px] leading-none">{trigger.emoji}</span>
@@ -230,8 +306,8 @@ function TriggerStep({
           onClick={onNext}
           disabled={!selectedTrigger}
           className={`h-[54px] w-full rounded-[10px] font-poppins text-[16px] font-bold transition active:scale-[0.98] ${selectedTrigger
-            ? "bg-[#178B5D] text-white shadow-[0px_10px_24px_rgba(23,139,93,0.2)]"
-            : "cursor-not-allowed bg-[#D9D9D9] text-[#8A8A8A]"
+              ? "bg-[#178B5D] text-white shadow-[0px_10px_24px_rgba(23,139,93,0.2)]"
+              : "cursor-not-allowed bg-[#D9D9D9] text-[#8A8A8A]"
             }`}
         >
           Selanjutnya →
@@ -245,10 +321,12 @@ function ActionStep({
   selectedAction,
   onSelect,
   onNext,
+  isSaving,
 }: {
   selectedAction: string | null;
   onSelect: (actionId: string) => void;
   onNext: () => void;
+  isSaving: boolean;
 }) {
   return (
     <section className="flex min-h-full flex-col pt-[34px]">
@@ -276,8 +354,8 @@ function ActionStep({
               type="button"
               onClick={() => onSelect(item.id)}
               className={`flex min-h-[72px] items-center gap-[18px] rounded-[12px] border bg-white px-[18px] text-left transition active:scale-[0.98] ${isSelected
-                ? "border-[#178B5D] bg-[#E7F4EE] shadow-[0px_8px_20px_rgba(23,139,93,0.12)]"
-                : "border-[#E1E1E1]"
+                  ? "border-[#178B5D] bg-[#E7F4EE] shadow-[0px_8px_20px_rgba(23,139,93,0.12)]"
+                  : "border-[#E1E1E1]"
                 }`}
             >
               <span className="w-[34px] text-center text-[28px] leading-none">
@@ -290,8 +368,8 @@ function ActionStep({
 
               <span
                 className={`flex h-[26px] w-[26px] items-center justify-center rounded-full border ${isSelected
-                  ? "border-[#178B5D] bg-[#178B5D] text-white"
-                  : "border-[#D4D4D4] bg-white text-transparent"
+                    ? "border-[#178B5D] bg-[#178B5D] text-white"
+                    : "border-[#D4D4D4] bg-white text-transparent"
                   }`}
               >
                 <HiCheck className="h-[16px] w-[16px]" />
@@ -305,13 +383,13 @@ function ActionStep({
         <button
           type="button"
           onClick={onNext}
-          disabled={!selectedAction}
-          className={`h-[54px] w-full rounded-[10px] font-poppins text-[16px] font-bold transition active:scale-[0.98] ${selectedAction
-            ? "bg-[#178B5D] text-white shadow-[0px_10px_24px_rgba(23,139,93,0.2)]"
-            : "cursor-not-allowed bg-[#D9D9D9] text-[#8A8A8A]"
+          disabled={!selectedAction || isSaving}
+          className={`h-[54px] w-full rounded-[10px] font-poppins text-[16px] font-bold transition active:scale-[0.98] ${selectedAction && !isSaving
+              ? "bg-[#178B5D] text-white shadow-[0px_10px_24px_rgba(23,139,93,0.2)]"
+              : "cursor-not-allowed bg-[#D9D9D9] text-[#8A8A8A]"
             }`}
         >
-          Aku lakuin sekarang
+          {isSaving ? "Menyimpan..." : "Aku lakuin sekarang"}
         </button>
       </div>
     </section>
