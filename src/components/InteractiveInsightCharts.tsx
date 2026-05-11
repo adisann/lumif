@@ -42,6 +42,12 @@ type RoutineDatum = {
     detail: string;
 };
 
+type RechartsClickState<T> = {
+    activePayload?: Array<{
+        payload?: T;
+    }>;
+};
+
 const DUMMY_CHECKIN_DATA: CheckInDatum[] = [
     {
         month: "Jan",
@@ -145,20 +151,22 @@ const DUMMY_ROUTINE_DATA: RoutineDatum[] = [
     },
 ];
 
-type MonthlyStat = {
-    month: string;
-    stress: number;
-    calm: number;
-    note?: string;
-};
-
 function CustomTooltip({
     active,
     payload,
     label,
 }: {
     active?: boolean;
-    payload?: any[];
+    payload?: Array<{
+        dataKey?: string | number;
+        name?: string | number;
+        value?: string | number;
+        color?: string;
+        payload?: {
+            catatan?: string;
+            detail?: string;
+        };
+    }>;
     label?: string;
 }) {
     if (!active || !payload || payload.length === 0) return null;
@@ -171,11 +179,11 @@ function CustomTooltip({
 
             <div className="space-y-[4px]">
                 {payload.map((item) => (
-                    <div key={item.dataKey} className="flex items-center justify-between gap-[18px]">
+                    <div key={String(item.dataKey ?? item.name)} className="flex items-center justify-between gap-[18px]">
                         <div className="flex items-center gap-[6px]">
                             <span
                                 className="h-[8px] w-[8px] rounded-full"
-                                style={{ backgroundColor: item.color }}
+                                style={{ backgroundColor: item.color ?? "#2D936C" }}
                             />
                             <p className="text-[11px] capitalize text-[#6F7280]">
                                 {item.name}
@@ -286,12 +294,7 @@ export function CheckInTrendChart() {
                         barGap={8}
                         barCategoryGap={22}
                         onClick={(state) => {
-                            const chartState = state as unknown as {
-                                activePayload?: Array<{
-                                    payload?: MonthlyStat;
-                                }>;
-                            };
-
+                            const chartState = state as unknown as RechartsClickState<CheckInDatum>;
                             const payload = chartState.activePayload?.[0]?.payload;
 
                             if (payload) {
@@ -430,8 +433,11 @@ export function RoutineCompletionChart() {
                         data={DUMMY_ROUTINE_DATA}
                         margin={{ top: 16, right: 8, left: -16, bottom: 0 }}
                         onClick={(state) => {
-                            if (state?.activePayload?.[0]?.payload) {
-                                setSelectedRoutine(state.activePayload[0].payload);
+                            const chartState = state as unknown as RechartsClickState<RoutineDatum>;
+                            const payload = chartState.activePayload?.[0]?.payload;
+
+                            if (payload) {
+                                setSelectedRoutine(payload);
                             }
                         }}
                     >
