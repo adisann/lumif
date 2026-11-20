@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import { createClient } from "@/lib/supabase/client";
+import { invalidateUserCache, readUserCache, writeUserCache } from "@/lib/userCache";
 import {
   Plus,
   MessageSquare,
@@ -316,20 +317,40 @@ export default function CommunityScreen() {
 
       const userId = user?.id ?? null;
 
+      if (userId && !withLoading) {
+        const cachedPosts = readUserCache<Post[]>(userId, "community_posts");
+        if (cachedPosts) {
+          setPosts(cachedPosts.data);
+          setIsLoadingPosts(false);
+          if (cachedPosts.isFresh) {
+            return;
+          }
+        }
+      }
+
       const { data: postRows, error: postError } = await supabase
         .from("community_posts")
         .select("id, user_id, author_name, tag, category, content, created_at")
         .order("created_at", { ascending: false });
 
       if (postError) {
-        setPosts(FALLBACK_COMMUNITY_POSTS);
+        if (userId) {
+          showToast("Gagal memuat feed komunitas dari server.");
+        } else {
+          setPosts(FALLBACK_COMMUNITY_POSTS);
+        }
         setIsLoadingPosts(false);
         return;
       }
 
       const postsData = postRows ?? [];
       if (postsData.length === 0) {
-        setPosts(FALLBACK_COMMUNITY_POSTS);
+        if (userId) {
+          setPosts([]);
+          writeUserCache(userId, "community_posts", []);
+        } else {
+          setPosts(FALLBACK_COMMUNITY_POSTS);
+        }
         setIsLoadingPosts(false);
         return;
       }
@@ -360,16 +381,18 @@ export default function CommunityScreen() {
         }
       }
 
-      setPosts(
-        postsData.map((row) =>
-          mapRowToPost(row, userId, reactionsByPost, repliesByPost)
-        )
+      const mappedPosts = postsData.map((row) =>
+        mapRowToPost(row, userId, reactionsByPost, repliesByPost)
       );
+      setPosts(mappedPosts);
+      if (userId) {
+        writeUserCache(userId, "community_posts", mappedPosts);
+      }
 
       setIsLoadingPosts(false);
     } catch (err) {
-      console.warn("Supabase loadPosts error fallback to demo posts:", err);
-      setPosts(FALLBACK_COMMUNITY_POSTS);
+      console.warn("Supabase loadPosts error:", err);
+      setPosts([]);
       setIsLoadingPosts(false);
     }
   };
@@ -462,6 +485,7 @@ export default function CommunityScreen() {
       return;
     }
 
+    invalidateUserCache(user.id, "community_posts");
     setPosts((prev) => [mapRowToPost(data, user.id, {}, {}), ...prev]);
     setNewPostContent("");
     setNewPostTag("#ceritaku");
@@ -543,6 +567,8 @@ export default function CommunityScreen() {
         console.error("Gagal menghapus reaction:", error);
         showToast("Gagal menghapus reaction");
         await loadPosts();
+      } else {
+        invalidateUserCache(user.id, "community_posts");
       }
 
       return;
@@ -558,6 +584,8 @@ export default function CommunityScreen() {
       console.error("Gagal menyimpan reaction:", error);
       showToast("Gagal menyimpan reaction");
       await loadPosts();
+    } else {
+      invalidateUserCache(user.id, "community_posts");
     }
   };
 
@@ -606,6 +634,7 @@ export default function CommunityScreen() {
       return;
     }
 
+    invalidateUserCache(undefined, "community_posts");
     showToast("Postingan kamu dihapus");
   };
 
@@ -697,6 +726,7 @@ export default function CommunityScreen() {
       })
     );
 
+    invalidateUserCache(user.id, "community_posts");
     showToast("Balasan dikirim 🌱");
   };
 

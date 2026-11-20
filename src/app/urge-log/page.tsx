@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import UrgeCheckInModal from "@/components/UrgeCheckInModal";
 import { createClient } from "@/lib/supabase/client";
+import { readUserCache, writeUserCache } from "@/lib/userCache";
 import ScreenHeader from "@/components/ScreenHeader";
 import { Plus, Clock, CheckCircle2, Zap } from "lucide-react";
 
@@ -53,12 +54,15 @@ export default function UrgeLogPage() {
 
   const [records, setRecords] = useState<UrgeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [fetchError, setFetchError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const fetchRecords = async (withLoading = true) => {
+  const fetchRecords = async (withLoading = true, bypassCache = false) => {
     if (withLoading) {
       setIsLoading(true);
     }
+    setFetchError("");
 
     try {
       const {
@@ -66,9 +70,23 @@ export default function UrgeLogPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        setIsAuthenticated(false);
         setRecords(SAMPLE_RECORDS);
         setIsLoading(false);
         return;
+      }
+
+      setIsAuthenticated(true);
+
+      if (!bypassCache) {
+        const cached = readUserCache<UrgeRecord[]>(user.id, "urge_log");
+        if (cached) {
+          setRecords(cached.data);
+          setIsLoading(false);
+          if (cached.isFresh) {
+            return;
+          }
+        }
       }
 
       const { data, error } = await supabase
@@ -76,10 +94,18 @@ export default function UrgeLogPage() {
         .select("id, created_at, urge_score, mood_score, energy_score, note")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
 
-      if (error || !data || data.length === 0) {
-        setRecords(SAMPLE_RECORDS);
+      if (error) {
+        console.error("Gagal memuat catatan hasrat:", error);
+        setFetchError("Gagal memuat riwayat catatan dari server.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setRecords([]);
+        writeUserCache(user.id, "urge_log", []);
         setIsLoading(false);
         return;
       }
@@ -116,9 +142,14 @@ export default function UrgeLogPage() {
       });
 
       setRecords(parsed);
+      writeUserCache(user.id, "urge_log", parsed);
       setIsLoading(false);
     } catch {
-      setRecords(SAMPLE_RECORDS);
+      if (!isAuthenticated) {
+        setRecords(SAMPLE_RECORDS);
+      } else {
+        setFetchError("Koneksi bermasalah saat memuat catatan.");
+      }
       setIsLoading(false);
     }
   };
@@ -131,15 +162,22 @@ export default function UrgeLogPage() {
       await fetchRecords(false);
     };
 
+    const handleDataUpdated = () => {
+      if (!isMounted) return;
+      void fetchRecords(false, true);
+    };
+
     loadInitial();
+    window.addEventListener("lumif:data-updated", handleDataUpdated);
 
     return () => {
       isMounted = false;
+      window.removeEventListener("lumif:data-updated", handleDataUpdated);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showingSample = records.some((r) => r.isSample);
+  const showingSample = !isAuthenticated && records.some((r) => r.isSample);
 
   return (
     <div className="lumif-with-nav relative flex min-h-dvh flex-col bg-surface-soft font-sans text-foreground">
@@ -196,16 +234,26 @@ export default function UrgeLogPage() {
                 Riwayat Catatan
               </h2>
               <div className="flex items-center gap-2">
-                {showingSample && (
+                {showingSample ? (
                   <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
                     Contoh Offline
                   </span>
-                )}
+                ) : isAuthenticated ? (
+                  <span className="rounded-md bg-primary-light px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    Data Akun Real-Time
+                  </span>
+                ) : null}
                 <span className="text-xs text-muted-foreground">
                   {records.length} tercatat
                 </span>
               </div>
             </div>
+
+            {fetchError && (
+              <div className="mb-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-2.5 text-xs font-medium text-danger">
+                {fetchError}
+              </div>
+            )}
 
             {isLoading ? (
               <div className="flex flex-col gap-3">
@@ -298,7 +346,7 @@ export default function UrgeLogPage() {
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          fetchRecords();
+          fetchRecords(false, true);
         }}
       />
       <BottomNav />

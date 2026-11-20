@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { awardPetXp } from "@/lib/pets";
+import { notifyUserDataUpdated } from "@/lib/userCache";
 
 interface UpdateKondisiModalProps {
   isOpen: boolean;
@@ -255,6 +256,7 @@ export default function UpdateKondisiModal({
         return;
       }
 
+      notifyUserDataUpdated(user.id);
       awardPetXp(25);
       setIsCompleted(true);
     } catch (err) {

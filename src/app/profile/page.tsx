@@ -6,6 +6,7 @@ import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/client";
+import { clearAllUserCaches } from "@/lib/userCache";
 import {
   DEFAULT_ONBOARDING,
   loadOnboardingData,
@@ -283,6 +284,7 @@ export default function ProfileScreen() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("lumif_demo_user");
     }
+    clearAllUserCaches();
 
     setIsLoggingOut(false);
     router.replace("/auth/login");

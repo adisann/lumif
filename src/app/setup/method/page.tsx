@@ -14,8 +14,8 @@ export default function MethodScreen() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [method, setMethod] = useState<"total" | "gradual" | null>("total");
-  const [date, setDate] = useState<Date>(new Date(2026, 1, 14)); // Feb 14, 2026
-  const [showPicker, setShowPicker] = useState(true); // Open by default for this specific design
+  const [date, setDate] = useState<Date>(() => new Date());
+  const [showPicker, setShowPicker] = useState(true);
 
   const handleNext = async () => {
     const chosenMethod = method ?? "total";
@@ -63,7 +63,7 @@ export default function MethodScreen() {
             <div className="font-poppins text-xs font-semibold text-foreground">
               Berhenti Total
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div suppressHydrationWarning className="text-[11px] text-muted-foreground">
               Setop sepenuhnya {format(date, "MMM dd yyyy")}
             </div>
           </div>

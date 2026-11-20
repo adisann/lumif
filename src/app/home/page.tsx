@@ -28,6 +28,11 @@ import RelapseResetFlow from "@/components/RelapseResetFlow";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import {
+  invalidateUserCache,
+  readUserCache,
+  writeUserCache,
+} from "@/lib/userCache";
+import {
   awardPetXp,
   claimStreakBonus,
   DEFAULT_PET_STATE,
@@ -101,9 +106,11 @@ export default function DashboardScreen() {
   const [missionError, setMissionError] = useState("");
   const [isOfflineDemo, setIsOfflineDemo] = useState(false);
   const [userName, setUserName] = useState("Sobat Lumif");
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [cleanDays, setCleanDays] = useState<number | null>(null);
   const [urgeCount, setUrgeCount] = useState<number | null>(null);
   const [hoursCount, setHoursCount] = useState<number | null>(null);
+  const [minutesCount, setMinutesCount] = useState<number | null>(null);
   const [energyScore, setEnergyScore] = useState<number | null>(null);
   const [petState, setPetState] = useState<PetState>(DEFAULT_PET_STATE);
   const [previewStage, setPreviewStage] = useState<PetStage | null>(null);
@@ -132,7 +139,20 @@ export default function DashboardScreen() {
   }, [isNotifOpen]);
 
   useEffect(() => {
-    const loadDashboardData = async () => {
+    let isMounted = true;
+
+    type HomeCachePayload = {
+      userName: string;
+      cleanDays: number;
+      hoursCount: number;
+      minutesCount: number;
+      urgeCount: number;
+      energyScore: number | null;
+      missions: Mission[];
+      recoveryPlan: OnboardingData;
+    };
+
+    const loadDashboardData = async (bypassCache = false) => {
       setIsLoadingMissions(true);
       setMissionError("");
 
@@ -141,10 +161,12 @@ export default function DashboardScreen() {
         const personalizedTexts = buildPersonalizedMissions(localPlan);
         setRecoveryPlan(localPlan);
         setIsOfflineDemo(true);
+        setAuthUserId(null);
         setUserName(nameFallback);
         setCleanDays(1);
         setUrgeCount(null);
-        setHoursCount(null);
+        setHoursCount(0);
+        setMinutesCount(0);
         setEnergyScore(null);
         setMissions(
           personalizedTexts.map((text, idx) => ({
@@ -161,6 +183,8 @@ export default function DashboardScreen() {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser();
+
+        if (!isMounted) return;
 
         if (userError || !user) {
           const demoUser =
@@ -185,7 +209,30 @@ export default function DashboardScreen() {
           return;
         }
 
+        setAuthUserId(user.id);
         setIsOfflineDemo(false);
+
+        const today = getTodayLocalDate();
+        const cacheKey = `dashboard_${today}`;
+
+        if (!bypassCache) {
+          const cached = readUserCache<HomeCachePayload>(user.id, cacheKey);
+          if (cached && isMounted) {
+            setUserName(cached.data.userName);
+            setCleanDays(cached.data.cleanDays);
+            setHoursCount(cached.data.hoursCount);
+            setMinutesCount(cached.data.minutesCount);
+            setUrgeCount(cached.data.urgeCount);
+            setEnergyScore(cached.data.energyScore);
+            setMissions(cached.data.missions);
+            setRecoveryPlan(cached.data.recoveryPlan);
+            setIsLoadingMissions(false);
+            if (cached.isFresh) {
+              return;
+            }
+          }
+        }
+
         const recoveryProfile = await loadUserRecoveryProfile(supabase);
         setRecoveryPlan(recoveryProfile);
         const emailName =
@@ -194,50 +241,63 @@ export default function DashboardScreen() {
           "Sobat Lumif";
         setUserName(emailName);
 
-        const { data: latestRelapse } = await supabase
-          .from("relapse_logs")
-          .select("created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (latestRelapse?.created_at) {
-          const diffMs = Date.now() - new Date(latestRelapse.created_at).getTime();
-          setCleanDays(Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24))));
-          setHoursCount(Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
-        } else if (user.created_at) {
-          const diffMs = Date.now() - new Date(user.created_at).getTime();
-          setCleanDays(Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24))));
-          setHoursCount(Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
-        }
-
-        const { data: checkinRows } = await supabase
-          .from("checkins")
-          .select("id, urge_score, energy_score")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(20);
-
-        if (checkinRows && checkinRows.length > 0) {
-          setUrgeCount(checkinRows.length);
-          const latestEnergy = checkinRows[0].energy_score;
-          if (typeof latestEnergy === "number") {
-            setEnergyScore(latestEnergy);
-          }
-        } else {
-          setUrgeCount(0);
-        }
-
-        const today = getTodayLocalDate();
-
-        const { data: existingMissions, error: missionErrorResponse } =
-          await supabase
+        const [
+          { data: latestRelapse },
+          { data: checkinRows },
+          { data: existingMissions, error: missionErrorResponse },
+        ] = await Promise.all([
+          supabase
+            .from("relapse_logs")
+            .select("created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("checkins")
+            .select("id, urge_score, energy_score")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(50),
+          supabase
             .from("daily_missions")
             .select("id, text, completed")
             .eq("user_id", user.id)
             .eq("mission_date", today)
-            .order("created_at", { ascending: true });
+            .order("created_at", { ascending: true }),
+        ]);
+
+        if (!isMounted) return;
+
+        const anchorIso = latestRelapse?.created_at ?? user.created_at ?? null;
+        let nextCleanDays = 0;
+        let nextHoursCount = 0;
+        let nextMinutesCount = 0;
+
+        if (anchorIso) {
+          const diffMs = Math.max(0, Date.now() - new Date(anchorIso).getTime());
+          nextCleanDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          nextHoursCount = Math.floor(
+            (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+          );
+          nextMinutesCount = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        }
+
+        setCleanDays(nextCleanDays);
+        setHoursCount(nextHoursCount);
+        setMinutesCount(nextMinutesCount);
+
+        const nextUrgeCount = checkinRows ? checkinRows.length : 0;
+        const latestEnergy =
+          checkinRows && checkinRows.length > 0 && typeof checkinRows[0].energy_score === "number"
+            ? checkinRows[0].energy_score
+            : null;
+        setUrgeCount(nextUrgeCount);
+        if (latestEnergy !== null) {
+          setEnergyScore(latestEnergy);
+        } else {
+          setEnergyScore(null);
+        }
 
         if (missionErrorResponse) {
           setMissionError("Gagal memuat misi harian.");
@@ -245,33 +305,43 @@ export default function DashboardScreen() {
           return;
         }
 
-        if (existingMissions && existingMissions.length > 0) {
-          setMissions(existingMissions);
-          setIsLoadingMissions(false);
-          return;
+        let resolvedMissions: Mission[] = existingMissions ?? [];
+
+        if (resolvedMissions.length === 0) {
+          const defaultMissions = buildPersonalizedMissions(recoveryProfile).map(
+            (text) => ({
+              user_id: user.id,
+              mission_date: today,
+              text,
+              completed: false,
+            })
+          );
+
+          const { data: insertedMissions, error: insertError } = await supabase
+            .from("daily_missions")
+            .insert(defaultMissions)
+            .select("id, text, completed");
+
+          if (insertError) {
+            setMissionError("Gagal membuat misi harian.");
+            setIsLoadingMissions(false);
+            return;
+          }
+
+          resolvedMissions = insertedMissions ?? [];
         }
 
-        const defaultMissions = buildPersonalizedMissions(recoveryProfile).map(
-          (text) => ({
-            user_id: user.id,
-            mission_date: today,
-            text,
-            completed: false,
-          })
-        );
-
-        const { data: insertedMissions, error: insertError } = await supabase
-          .from("daily_missions")
-          .insert(defaultMissions)
-          .select("id, text, completed");
-
-        if (insertError) {
-          setMissionError("Gagal membuat misi harian.");
-          setIsLoadingMissions(false);
-          return;
-        }
-
-        setMissions(insertedMissions ?? []);
+        setMissions(resolvedMissions);
+        writeUserCache(user.id, cacheKey, {
+          userName: emailName,
+          cleanDays: nextCleanDays,
+          hoursCount: nextHoursCount,
+          minutesCount: nextMinutesCount,
+          urgeCount: nextUrgeCount,
+          energyScore: latestEnergy,
+          missions: resolvedMissions,
+          recoveryPlan: recoveryProfile,
+        });
         setIsLoadingMissions(false);
       } catch {
         const demoUser =
@@ -288,7 +358,18 @@ export default function DashboardScreen() {
       }
     };
 
-    loadDashboardData();
+    const handleDataUpdated = () => {
+      if (!isMounted) return;
+      void loadDashboardData(true);
+    };
+
+    void loadDashboardData();
+    window.addEventListener("lumif:data-updated", handleDataUpdated);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("lumif:data-updated", handleDataUpdated);
+    };
   }, [router, supabase]);
 
   const toggleMission = async (id: string) => {
@@ -322,6 +403,9 @@ export default function DashboardScreen() {
           )
         );
         setMissionError("Gagal menyimpan perubahan misi.");
+      } else if (authUserId) {
+        invalidateUserCache(authUserId, "dashboard");
+        invalidateUserCache(authUserId, "insight");
       }
     } catch {
       // Offline mode keeps local optimistic state
@@ -475,9 +559,11 @@ export default function DashboardScreen() {
 
                     <div className="rounded-2xl border border-white/15 bg-[#1D6348] p-3.5 text-center">
                       <div className="mb-1 font-heading text-xl font-bold leading-none text-white">
-                        {hoursCount !== null ? `${hoursCount} Jam` : "-"}
+                        {hoursCount !== null
+                          ? `${hoursCount}j ${minutesCount ?? 0}m`
+                          : "-"}
                       </div>
-                      <div className="text-xs text-white/90">Sisa Jam Bersih</div>
+                      <div className="text-xs text-white/90">Durasi Berjalan</div>
                     </div>
 
                     <div className="rounded-2xl border border-white/15 bg-[#1D6348] p-3.5 text-center">

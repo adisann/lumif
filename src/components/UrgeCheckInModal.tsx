@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { awardPetXp } from "@/lib/pets";
+import { notifyUserDataUpdated } from "@/lib/userCache";
 
 type UrgeCheckInModalProps = {
   isOpen: boolean;
@@ -150,6 +151,7 @@ export default function UrgeCheckInModal({
         return;
       }
 
+      notifyUserDataUpdated(user.id);
       awardPetXp(20);
       setSaved(true);
     } catch (err) {

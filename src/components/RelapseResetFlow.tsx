@@ -9,6 +9,7 @@ import {
   Heart,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { notifyUserDataUpdated } from "@/lib/userCache";
 
 type RelapseStep = "comfort" | "triggers" | "action" | "success";
 
@@ -132,6 +133,7 @@ export default function RelapseResetFlow({
         return;
       }
 
+      notifyUserDataUpdated(user.id);
       setCurrentStep("success");
     } catch (err) {
       console.warn("Supabase relapse_logs offline fallback:", err);
