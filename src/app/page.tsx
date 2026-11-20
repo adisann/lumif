@@ -2,9 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-
-const LOGO_URL = "/assets/Logo Lumif.png";
+import LumifLogo from "@/components/LumifLogo";
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -12,26 +10,26 @@ export default function SplashScreen() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       router.push("/onboarding");
-    }, 2500);
+    }, 2200);
 
     return () => window.clearTimeout(timer);
   }, [router]);
 
   return (
-    <main
-      className="relative flex h-dvh w-full cursor-pointer items-center justify-center overflow-hidden bg-white"
-      onClick={() => router.push("/onboarding")}
-    >
-      <div className="relative h-[108px] w-[191px] animate-pulse-soft">
-        <Image
-          src={LOGO_URL}
-          alt="Lumif Logo"
-          fill
-          className="object-contain"
-          priority
-          unoptimized
-        />
-      </div>
+    <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-6">
+      <button
+        type="button"
+        onClick={() => router.push("/onboarding")}
+        className="flex flex-col items-center gap-4 rounded-3xl p-6 transition hover:bg-muted/40"
+        aria-label="Masuk ke halaman pengenalan Lumif"
+      >
+        <div className="animate-fadeIn">
+          <LumifLogo size="xl" priority />
+        </div>
+        <span className="text-xs font-semibold text-brand-orange-ink">
+          Ketuk untuk melanjutkan
+        </span>
+      </button>
     </main>
   );
 }

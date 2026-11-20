@@ -1,5 +1,4 @@
-import { HiOutlineArrowLeft } from "react-icons/hi2";
-import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function TopNav({
   onSkip,
@@ -11,18 +10,21 @@ export default function TopNav({
   skipText?: string;
 }) {
   return (
-    <div className="flex items-center justify-between px-[24px] pt-[8px] w-full relative z-10">
+    <div className="relative z-10 flex w-full items-center justify-between px-6 pt-3">
       <button
+        type="button"
         onClick={onBack}
-        className="flex h-[48px] w-[48px] items-center justify-center rounded-[10px] border border-[#e5e5e5] bg-white transition-colors hover:bg-neutral-50 active:bg-neutral-100"
+        className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white shadow-xs transition hover:bg-muted active:scale-95"
+        aria-label="Kembali"
       >
-        <HiOutlineArrowLeft className="h-[20px] w-[20px] text-neutral-800" />
+        <ArrowLeft className="h-5 w-5 text-foreground" />
       </button>
-      
+
       {onSkip && (
         <button
+          type="button"
           onClick={onSkip}
-          className="text-[14px] font-bold text-[#666] tracking-[-0.28px]"
+          className="text-sm font-semibold text-muted-foreground transition hover:text-foreground"
         >
           {skipText}
         </button>

@@ -1,25 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { HiArrowLeft } from "react-icons/hi2";
+import ScreenHeader from "@/components/ScreenHeader";
+import BreathingOrb, {
+  type BreathingPhase,
+  type BreathingStep,
+} from "@/components/BreathingOrb";
+import { RotateCcw, Home, CheckCircle2 } from "lucide-react";
+import {
+  awardPetXp,
+  DEFAULT_PET_STATE,
+  getPetProgress,
+  getPetSpecies,
+  loadPetState,
+  type PetState,
+} from "@/lib/pets";
 
-type BreathingPhase = "inhale" | "exhale";
-
-type BreathingStep = {
-  phase: BreathingPhase;
-  title: string;
-  subtitle: string;
-  helper: string;
-  duration: number;
-  theme: {
-    main: string;
-    middle: string;
-    outer: string;
-    text: string;
-    progress: string;
-  };
-};
+const LumifMascot3D = dynamic(() => import("@/components/LumifMascot3D"), {
+  ssr: false,
+});
 
 const BREATHING_STEPS: BreathingStep[] = [
   {
@@ -28,27 +29,13 @@ const BREATHING_STEPS: BreathingStep[] = [
     subtitle: "Tarik nafas perlahan melalui hidung",
     helper: "Pelan-pelan saja...",
     duration: 4,
-    theme: {
-      main: "#178B5D",
-      middle: "#3C9F78",
-      outer: "#9ACDBA",
-      text: "#178B5D",
-      progress: "#FF7A00",
-    },
   },
   {
     phase: "exhale",
     title: "Hembuskan",
     subtitle: "Hembuskan perlahan melalui mulut",
-    helper: "Pelan-pelan saja...",
+    helper: "Lepaskan ketegangan...",
     duration: 4,
-    theme: {
-      main: "#B79A28",
-      middle: "#C5AD4E",
-      outer: "#DED09B",
-      text: "#FF7A00",
-      progress: "#FF7A00",
-    },
   },
   {
     phase: "inhale",
@@ -56,126 +43,83 @@ const BREATHING_STEPS: BreathingStep[] = [
     subtitle: "Tarik nafas perlahan melalui hidung",
     helper: "Pelan-pelan saja...",
     duration: 4,
-    theme: {
-      main: "#178B5D",
-      middle: "#3C9F78",
-      outer: "#9ACDBA",
-      text: "#178B5D",
-      progress: "#FF7A00",
-    },
   },
   {
     phase: "exhale",
     title: "Hembuskan",
     subtitle: "Hembuskan perlahan melalui mulut",
-    helper: "Pelan-pelan saja...",
+    helper: "Lepaskan ketegangan...",
     duration: 4,
-    theme: {
-      main: "#B79A28",
-      middle: "#C5AD4E",
-      outer: "#DED09B",
-      text: "#FF7A00",
-      progress: "#FF7A00",
-    },
   },
 ];
 
 export default function BreathingExerciseScreen() {
   const router = useRouter();
 
-  const [stepIndex, setStepIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(BREATHING_STEPS[0].duration);
   const [isFinished, setIsFinished] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
-
-  const currentStep = BREATHING_STEPS[stepIndex];
-  const isInhale = currentStep.phase === "inhale";
-
-  const completedSteps = useMemo(() => {
-    return isFinished ? BREATHING_STEPS.length : stepIndex;
-  }, [isFinished, stepIndex]);
-
-  const totalDuration = currentStep.duration;
-  const elapsed = totalDuration - timeLeft;
-  const phaseProgress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+  const [activePhase, setActivePhase] = useState<BreathingPhase>("inhale");
+  const [sessionRunKey, setSessionRunKey] = useState(0);
+  const [petState, setPetState] = useState<PetState>(DEFAULT_PET_STATE);
+  const breathMixRef = useRef(0);
 
   useEffect(() => {
-    if (isFinished) return;
+    const raf = window.requestAnimationFrame(() => {
+      setPetState(loadPetState());
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
 
-    const timer = window.setTimeout(() => {
-      if (timeLeft > 1) {
-        setTimeLeft((prev) => prev - 1);
-        return;
-      }
-
-      const nextIndex = stepIndex + 1;
-
-      if (nextIndex >= BREATHING_STEPS.length) {
-        setIsFinished(true);
-        return;
-      }
-
-      setStepIndex(nextIndex);
-      setTimeLeft(BREATHING_STEPS[nextIndex].duration);
-      setAnimationKey((prev) => prev + 1);
-    }, 1000);
-
-    return () => window.clearTimeout(timer);
-  }, [timeLeft, stepIndex, isFinished]);
+  const handleComplete = useCallback(() => {
+    awardPetXp(20);
+    setIsFinished(true);
+  }, []);
 
   const handleRestart = () => {
-    setStepIndex(0);
-    setTimeLeft(BREATHING_STEPS[0].duration);
     setIsFinished(false);
-    setAnimationKey((prev) => prev + 1);
+    setActivePhase("inhale");
+    setSessionRunKey((prev) => prev + 1);
   };
 
   if (isFinished) {
     return (
-      <main className="relative flex h-dvh w-full flex-col overflow-hidden bg-white font-lexend text-black">
-        <header className="shrink-0 px-[24px] pb-[16px] pt-[20px]">
-          <div className="flex items-center">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-[#E5E5E5] bg-white transition active:scale-95"
-            >
-              <HiArrowLeft className="h-[18px] w-[18px] text-black" />
-            </button>
+      <main className="relative flex min-h-dvh w-full flex-col bg-surface-soft font-sans text-foreground">
+        <ScreenHeader
+          title="Bantuan Darurat"
+          subtitle="Latihan Pernapasan Relaksasi"
+          onBack={() => router.back()}
+        />
 
-            <h1 className="mr-[34px] flex-1 text-center font-poppins text-[20px] font-bold tracking-[-0.4px]">
-              Bantuan Darurat
-            </h1>
+        <section className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary-light text-primary shadow-xs">
+            <CheckCircle2 className="h-10 w-10" aria-hidden="true" />
           </div>
-        </header>
 
-        <section className="flex flex-1 flex-col items-center justify-center px-[24px] pb-[120px] text-center">
-          <div className="mb-[22px] text-[58px] leading-none">👍</div>
-
-          <h2 className="font-poppins text-[28px] font-extrabold leading-[34px] tracking-[-0.7px] text-black">
-            KAMU HEBAT
+          <h2 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">
+            Kamu Hebat
           </h2>
 
-          <p className="mt-[10px] max-w-[330px] text-[17px] font-medium leading-[25px] text-[#1E1E1E]">
+          <p className="mt-3 text-base font-medium leading-relaxed text-muted-foreground">
             Kamu baru saja membuktikan kalau kamu lebih besar dari dorongan.
-            Kemenangan kecil ini akan menjadi senjatamu
+            Kemenangan kecil ini membantu pikiranmu kembali tenang.
           </p>
 
-          <div className="mt-[34px] flex w-full flex-col gap-[12px]">
+          <div className="mt-8 flex w-full flex-col gap-3">
             <button
               type="button"
-              onClick={() => router.back()}
-              className="h-[54px] w-full rounded-[10px] bg-[#178B5D] font-poppins text-[16px] font-bold text-white transition active:scale-[0.98]"
+              onClick={() => router.push("/home")}
+              className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-primary font-heading text-base font-semibold text-primary-foreground shadow-xs transition hover:bg-primary-dark"
             >
-              Kembali ke Dashboard
+              <Home className="h-5 w-5" aria-hidden="true" />
+              Kembali ke Beranda
             </button>
 
             <button
               type="button"
               onClick={handleRestart}
-              className="h-[54px] w-full rounded-[10px] border border-[#E5E5E5] bg-white font-poppins text-[16px] font-bold text-[#178B5D] transition active:scale-[0.98]"
+              className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card font-heading text-base font-semibold text-primary shadow-xs transition hover:bg-muted"
             >
-              Ulangi Pernafasan
+              <RotateCcw className="h-5 w-5" aria-hidden="true" />
+              Ulangi Pernapasan
             </button>
           </div>
         </section>
@@ -183,145 +127,49 @@ export default function BreathingExerciseScreen() {
     );
   }
 
+  const species = getPetSpecies(petState.speciesId);
+  const progress = getPetProgress(petState.xp, species);
+  const asset = species.stages[progress.stage];
+
   return (
-    <main className="relative flex h-dvh w-full flex-col overflow-hidden bg-white font-lexend text-black">
-      <header className="shrink-0 px-[24px] pb-[16px] pt-[20px]">
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-[#E5E5E5] bg-white transition active:scale-95"
-          >
-            <HiArrowLeft className="h-[18px] w-[18px] text-black" />
-          </button>
+    <main className="relative flex min-h-dvh w-full flex-col bg-surface-soft font-sans text-foreground">
+      <ScreenHeader
+        title="Bantuan Darurat"
+        subtitle="Latihan Pernapasan 4-4"
+        onBack={() => router.back()}
+      />
 
-          <h1 className="mr-[34px] flex-1 text-center font-poppins text-[20px] font-bold tracking-[-0.4px]">
-            Bantuan Darurat
-          </h1>
-        </div>
-      </header>
-
-      <section className="flex flex-1 flex-col items-center px-[24px] pt-[92px]">
-        <button
-          key={animationKey}
-          type="button"
-          onClick={() => {
-            const nextIndex = stepIndex + 1;
-
-            if (nextIndex >= BREATHING_STEPS.length) {
-              setIsFinished(true);
-              return;
-            }
-
-            setStepIndex(nextIndex);
-            setTimeLeft(BREATHING_STEPS[nextIndex].duration);
-            setAnimationKey((prev) => prev + 1);
-          }}
-          className="relative flex h-[258px] w-[258px] items-center justify-center rounded-full transition active:scale-[0.98]"
-          aria-label="Lanjut ke tahap pernafasan berikutnya"
-        >
-          <div
-            className="absolute inset-0 rounded-full transition-all ease-in-out"
-            style={{
-              backgroundColor: currentStep.theme.outer,
-              transform: isInhale ? "scale(1)" : "scale(1.16)",
-              opacity: isInhale ? 0.95 : 0.9,
-              transitionDuration: `${currentStep.duration * 1000}ms`,
-            }}
-          />
-
-          <div
-            className="absolute h-[200px] w-[200px] rounded-full transition-all ease-in-out"
-            style={{
-              backgroundColor: currentStep.theme.middle,
-              transform: isInhale ? "scale(1.05)" : "scale(0.9)",
-              transitionDuration: `${currentStep.duration * 1000}ms`,
-            }}
-          />
-
-          <div
-            className="absolute h-[148px] w-[148px] rounded-full transition-all ease-in-out"
-            style={{
-              backgroundColor: currentStep.theme.main,
-              transform: isInhale ? "scale(1.08)" : "scale(0.86)",
-              transitionDuration: `${currentStep.duration * 1000}ms`,
-            }}
-          />
-
-          <div className="relative z-10 flex flex-col items-center">
-            <p className="font-poppins text-[18px] font-bold text-white">
-              {currentStep.title}
-            </p>
-
-            <p className="mt-[4px] font-poppins text-[30px] font-extrabold leading-none text-white">
-              {timeLeft}
-            </p>
+      <section className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 py-8">
+        <div className="grid w-full grid-cols-1 items-center gap-8 lg:grid-cols-12">
+          <div className="flex flex-col items-center lg:col-span-7">
+            <BreathingOrb
+              key={sessionRunKey}
+              steps={BREATHING_STEPS}
+              active={!isFinished}
+              onPhaseChange={(phase) => setActivePhase(phase)}
+              onBreathMix={(mix) => {
+                breathMixRef.current = mix;
+              }}
+              onComplete={handleComplete}
+            />
           </div>
 
-          <div
-            className="absolute -bottom-[16px] h-[26px] w-[120px] rounded-full blur-[22px] transition-all duration-700"
-            style={{
-              backgroundColor: currentStep.theme.outer,
-              opacity: 0.45,
-            }}
-          />
-        </button>
-
-        <div className="mt-[26px] text-center">
-          <h2
-            className="font-poppins text-[20px] font-bold tracking-[-0.3px]"
-            style={{ color: currentStep.theme.text }}
-          >
-            {currentStep.helper}
-          </h2>
-
-          <p className="mt-[8px] max-w-[280px] text-[13px] leading-[19px] text-[#8B8FA0]">
-            {currentStep.subtitle}
-          </p>
-        </div>
-
-        <div className="mt-[46px] flex items-center justify-center gap-[10px]">
-          {BREATHING_STEPS.map((step, index) => {
-            const isActive = index === stepIndex;
-            const isCompleted = index < completedSteps;
-
-            return (
-              <button
-                key={`${step.phase}-${index}`}
-                type="button"
-                onClick={() => {
-                  setStepIndex(index);
-                  setTimeLeft(BREATHING_STEPS[index].duration);
-                  setIsFinished(false);
-                  setAnimationKey((prev) => prev + 1);
-                }}
-                className="h-[7px] overflow-hidden rounded-full bg-[#DEDEE0] transition-all active:scale-95"
-                style={{
-                  width: isActive || isCompleted ? 44 : 44,
-                }}
-                aria-label={`Tahap ${index + 1}: ${step.title}`}
-              >
-                <span
-                  className="block h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: isCompleted
-                      ? "100%"
-                      : isActive
-                        ? `${phaseProgress}%`
-                        : "0%",
-                    backgroundColor: currentStep.theme.progress,
-                  }}
-                />
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-[28px] flex items-center gap-[8px] rounded-full bg-[#F7F8FA] px-[14px] py-[9px]">
-          <span className="h-[8px] w-[8px] rounded-full bg-[#178B5D]" />
-          <p className="text-[12px] font-semibold text-[#6F7280]">
-            {stepIndex + 1} dari {BREATHING_STEPS.length} tahap
-          </p>
+          <div className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-5">
+            <h3 className="font-heading text-base font-bold text-card-foreground">
+              Bernapas Bersama {petState.nickname}
+            </h3>
+            <p className="mb-3 mt-1 text-xs text-muted-foreground">
+              {species.name} · Lv. {progress.level} ({progress.stageLabel}). Ikuti gerakan perlahan saat menarik dan menghembuskan napas.
+            </p>
+            <LumifMascot3D
+              modelUrl={asset.modelUrl}
+              stage={progress.stage}
+              isEggStage={progress.stage === "egg" && species.hasEvolution}
+              mode="breathing"
+              breathPhase={activePhase}
+              breathMixRef={breathMixRef}
+            />
+          </div>
         </div>
       </section>
     </main>

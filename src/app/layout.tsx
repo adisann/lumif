@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lexend, Poppins } from "next/font/google";
 import "./globals.css";
+import ThemeInitializer from "@/components/ThemeInitializer";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -14,8 +15,9 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Lumif Web App",
-  description: "Lumif Mobile App ported to Web",
+  title: "Lumif: Ruang Pemulihan Mandiri",
+  description:
+    "Pendamping pemulihan kebiasaan dengan check-in harian, latihan pernapasan, modul CBT/ACT, dan komunitas suportif.",
 };
 
 export default function RootLayout({
@@ -25,11 +27,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${lexend.variable} ${poppins.variable} antialiased bg-neutral-100`}
+      lang="id"
+      className={`${lexend.variable} ${poppins.variable} antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-screen font-sans">
-        <div className="max-w-[440px] mx-auto min-h-[100dvh] bg-white relative overflow-x-hidden shadow-2xl ring-1 ring-black/5">
+      <body className="min-h-dvh w-full bg-surface-soft font-sans text-foreground">
+        <ThemeInitializer />
+        <div className="min-h-dvh w-full overflow-x-clip bg-surface-soft">
           {children}
         </div>
       </body>
