@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lumif Focus Guard</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="header">
+        <div class="brand">
+          <img src="/icon/48.png" alt="Lumif" width="30" height="30" />
+          <div>
+            <h1>Lumif Focus Guard</h1>
+            <p class="subtitle">Pendamping kendali diri lokal</p>
+          </div>
+        </div>
+        <span id="status-badge" class="badge badge-muted">Memuat...</span>
+      </header>
+
+      <section id="permission-banner" class="alert-box hidden">
+        <p id="permission-text">
+          Agar layar intervensi dapat muncul saat situs atau pencarian cocok, izinkan akses pengalihan di browser ini.
+        </p>
+        <button id="btn-grant-permission" type="button" class="btn btn-amber">
+          Izinkan Pengalihan Intervensi
+        </button>
+      </section>
+
+      <section class="status-card">
+        <div class="status-meta">
+          <p id="status-headline" class="status-headline">Memeriksa proteksi...</p>
+          <p id="status-subline" class="status-subline">Menghubungkan penyimpanan lokal</p>
+        </div>
+        <div class="status-actions">
+          <button id="btn-toggle-enable" type="button" class="btn btn-primary">
+            Aktifkan
+          </button>
+          <button id="btn-pause-10" type="button" class="btn btn-outline">
+            Jeda 10 Menit
+          </button>
+        </div>
+      </section>
+
+      <section class="goal-box">
+        <span class="label-xs">Pengingat Tujuanmu</span>
+        <p id="goal-text" class="goal-text"></p>
+      </section>
+
+      <form id="quick-add-form" class="quick-add">
+        <label for="quick-input" class="label-xs">Tambah cepat domain atau kata kunci</label>
+        <div class="quick-row">
+          <select id="quick-type" aria-label="Jenis aturan">
+            <option value="domain">Domain</option>
+            <option value="keyword">Kata kunci</option>
+          </select>
+          <input
+            id="quick-input"
+            type="text"
+            placeholder="mis. example.com"
+            autocomplete="off"
+          />
+          <button type="submit" class="btn btn-primary btn-sm">Tambah</button>
+        </div>
+        <p id="quick-feedback" class="feedback hidden"></p>
+      </form>
+
+      <footer class="footer-links">
+        <button id="btn-test-intervention" type="button" class="btn btn-ghost">
+          Uji Layar Intervensi
+        </button>
+        <button id="btn-open-options" type="button" class="btn btn-ghost">
+          Pengaturan
+        </button>
+        <button id="btn-open-web" type="button" class="btn btn-ghost">
+          Buka Lumif Web
+        </button>
+      </footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

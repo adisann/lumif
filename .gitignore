@@ -17,6 +17,11 @@
 /.next/
 /out/
 
+# browser extension (wxt)
+/extension/node_modules
+/extension/.output
+/extension/.wxt
+
 # production
 /build
 
