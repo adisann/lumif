@@ -1,76 +1,111 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { ArrowLeft, Mail } from "lucide-react";
 import { FaGoogle, FaApple } from "react-icons/fa";
-import { HiOutlineMail } from "react-icons/hi";
-import { HiArrowLeft } from "react-icons/hi2";
-
-const LOGO_URL = "/assets/Logo Lumif.png";
+import { createClient } from "@/lib/supabase/client";
+import LumifLogo from "@/components/LumifLogo";
 
 export default function AuthOptionsScreen() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const [oauthNotice, setOauthNotice] = useState("");
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+
+  const handleOAuth = async (provider: "google" | "apple") => {
+    setOauthNotice("");
+    setLoadingProvider(provider);
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/home`,
+        },
+      });
+      if (error) {
+        setOauthNotice(
+          `Login ${provider === "google" ? "Google" : "Apple"} belum tersedia (${error.message}). Gunakan Email atau Mode Demo.`
+        );
+      }
+    } catch {
+      setOauthNotice(
+        `Tidak dapat terhubung ke layanan login ${provider === "google" ? "Google" : "Apple"}. Gunakan Email atau Mode Demo.`
+      );
+    } finally {
+      setLoadingProvider(null);
+    }
+  };
 
   return (
-    <main className="relative flex h-dvh w-full flex-col overflow-hidden bg-white font-lexend text-black">
-      {/* Back Button */}
-      <header className="absolute left-0 right-0 top-0 z-10 px-[24px] pt-[20px]">
+    <main className="relative flex min-h-dvh w-full flex-col bg-surface-soft font-sans text-foreground">
+      <header className="mx-auto flex w-full max-w-5xl items-center px-6 pt-5">
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex h-[48px] w-[48px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white shadow-sm transition active:scale-95"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-xs transition hover:bg-muted active:scale-95"
           aria-label="Kembali"
         >
-          <HiArrowLeft className="h-[20px] w-[20px] text-black" />
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
         </button>
       </header>
 
-      {/* Center Content */}
-      <section className="flex flex-1 items-center justify-center px-[24px]">
-        <div className="w-full max-w-[416px] -translate-y-[24px]">
-          {/* Logo */}
-          <div className="mb-[42px] flex justify-center">
-            <div className="relative h-[128px] w-[226px]">
-              <Image
-                src={LOGO_URL}
-                alt="Lumif Logo"
-                fill
-                className="object-contain"
-                priority
-                unoptimized
-              />
+      <section className="flex flex-1 items-center justify-center px-6 py-10">
+        <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-4">
+              <LumifLogo size="lg" priority />
             </div>
+            <h1 className="font-heading text-xl font-bold text-card-foreground">
+              Masuk ke Ruang Lumif
+            </h1>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Pilih metode masuk untuk melanjutkan perjalanan pemulihanmu.
+            </p>
           </div>
 
-          {/* Buttons */}
-          <div className="flex w-full flex-col gap-[24px]">
+          {oauthNotice && (
+            <div
+              role="alert"
+              className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs font-medium text-destructive"
+            >
+              {oauthNotice}
+            </div>
+          )}
+
+          <div className="flex w-full flex-col gap-3">
             <button
               type="button"
-              className="flex h-[52px] w-full items-center justify-center gap-[12px] rounded-[10px] border border-[#E5E5E5] bg-white text-black shadow-sm transition hover:bg-gray-50 active:scale-[0.98]"
+              disabled={loadingProvider !== null}
+              onClick={() => handleOAuth("google")}
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card text-card-foreground shadow-xs transition hover:bg-muted active:scale-[0.99] disabled:opacity-60"
             >
-              <FaGoogle className="h-[20px] w-[20px] text-[#4285F4]" />
-              <span className="font-poppins text-[16px] font-medium tracking-[-0.32px]">
-                Lanjutkan dengan Google
+              <FaGoogle className="h-4 w-4 text-[#4285F4]" aria-hidden="true" />
+              <span className="font-heading text-sm font-semibold">
+                {loadingProvider === "google" ? "Menghubungkan..." : "Lanjutkan dengan Google"}
               </span>
             </button>
 
             <button
               type="button"
-              className="flex h-[52px] w-full items-center justify-center gap-[12px] rounded-[10px] bg-black text-white shadow-sm transition hover:bg-gray-800 active:scale-[0.98]"
+              disabled={loadingProvider !== null}
+              onClick={() => handleOAuth("apple")}
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-foreground text-background shadow-xs transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
             >
-              <FaApple className="h-[22px] w-[22px]" />
-              <span className="font-poppins text-[16px] font-medium tracking-[-0.32px]">
-                Lanjutkan dengan Apple
+              <FaApple className="h-4 w-4" aria-hidden="true" />
+              <span className="font-heading text-sm font-semibold">
+                {loadingProvider === "apple" ? "Menghubungkan..." : "Lanjutkan dengan Apple"}
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => router.push("/auth/login")}
-              className="flex h-[52px] w-full items-center justify-center gap-[12px] rounded-[10px] border border-[#E5E5E5] bg-white text-black shadow-sm transition hover:bg-gray-50 active:scale-[0.98]"
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card text-card-foreground shadow-xs transition hover:bg-muted active:scale-[0.99]"
             >
-              <HiOutlineMail className="h-[22px] w-[22px]" />
-              <span className="font-poppins text-[16px] font-medium tracking-[-0.32px]">
+              <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className="font-heading text-sm font-semibold">
                 Lanjutkan dengan Email
               </span>
             </button>

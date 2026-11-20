@@ -1,9 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { X, CheckCircle2, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  Check,
+  CheckCircle2,
+  CloudRain,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Sprout,
+  Wind,
+  X,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { awardPetXp } from "@/lib/pets";
 
 interface UpdateKondisiModalProps {
   isOpen: boolean;
@@ -15,10 +29,12 @@ type ConditionId = "stable" | "urge" | "heavy" | "fallen";
 type MainCondition = {
   id: ConditionId;
   label: string;
-  emoji: string;
   description: string;
-  color: string;
-  selectedColor: string;
+  empathyLine: string;
+  completionTitle: string;
+  completionBody: string;
+  icon: LucideIcon;
+  tone: "emerald" | "amber" | "orange";
   moodScore: number;
   urgeScore: number;
   energyScore: number;
@@ -27,11 +43,14 @@ type MainCondition = {
 const MAIN_CONDITIONS: MainCondition[] = [
   {
     id: "stable",
-    label: "Lagi Stabil",
-    emoji: "🌿",
-    description: "Aku cukup tenang dan bisa mengontrol diri.",
-    color: "border-emerald-100 bg-emerald-50",
-    selectedColor: "border-[#2D936C] bg-[#E7F4EE] ring-4 ring-emerald-50",
+    label: "Cukup Stabil",
+    description: "Pikiran cukup tenang dan kendali diri terjaga.",
+    empathyLine: "Senang mendengarnya. Momen tenang seperti ini layak dicatat sebagai jangkar harian.",
+    completionTitle: "Check-in tersimpan",
+    completionBody:
+      "Terima kasih sudah meluangkan waktu menyapa dirimu hari ini. Jaga ritme pelan yang nyaman untukmu.",
+    icon: Sprout,
+    tone: "emerald",
     moodScore: 8,
     urgeScore: 2,
     energyScore: 7,
@@ -39,10 +58,13 @@ const MAIN_CONDITIONS: MainCondition[] = [
   {
     id: "urge",
     label: "Ada Dorongan",
-    emoji: "⚡",
-    description: "Ada dorongan, tapi aku masih sadar.",
-    color: "border-amber-100 bg-amber-50",
-    selectedColor: "border-[#F59E0B] bg-[#FFF7E6] ring-4 ring-amber-50",
+    description: "Muncul keinginan, tetapi aku masih sadar penuh.",
+    empathyLine: "Menyadari dorongan sebelum bereaksi adalah tanda kendali diri yang nyata.",
+    completionTitle: "Terima kasih sudah jujur jeda",
+    completionBody:
+      "Kamu tidak harus melawan dorongan sendirian. Mengakui kemunculannya saja sudah memberi ruang untuk memilih langkah berikutnya.",
+    icon: Zap,
+    tone: "amber",
     moodScore: 6,
     urgeScore: 7,
     energyScore: 5,
@@ -50,53 +72,112 @@ const MAIN_CONDITIONS: MainCondition[] = [
   {
     id: "heavy",
     label: "Lagi Berat",
-    emoji: "😮‍💨",
-    description: "Hari ini terasa berat dan melelahkan.",
-    color: "border-orange-100 bg-orange-50",
-    selectedColor: "border-[#F97316] bg-[#FFF3E8] ring-4 ring-orange-50",
+    description: "Hari terasa melelahkan dan energiku menipis.",
+    empathyLine: "Tidak apa-apa jika hari ini terasa berat. Kamu tidak wajib selalu merasa baik-baik saja.",
+    completionTitle: "Check-in diterima dengan hangat",
+    completionBody:
+      "Di hari yang melelahkan, bertahan selangkah demi selangkah sudah cukup. Beri dirimu izin untuk beristirahat sejenak.",
+    icon: CloudRain,
+    tone: "orange",
     moodScore: 4,
     urgeScore: 8,
     energyScore: 3,
   },
   {
     id: "fallen",
-    label: "Barusan Jatuh",
-    emoji: "🫂",
-    description: "Aku butuh reset dan mulai lagi pelan-pelan.",
-    color: "border-rose-100 bg-rose-50",
-    selectedColor: "border-[#E11D48] bg-[#FFF1F2] ring-4 ring-rose-50",
+    label: "Butuh Reset",
+    description: "Sempat terpeleset, dan sekarang mau mulai lagi.",
+    empathyLine: "Satu kejadian tidak menghapus seluruh usahamu. Kita mulai lagi dari titik ini pelan-pelan.",
+    completionTitle: "Langkah baru sudah tercatat",
+    completionBody:
+      "Terima kasih sudah tetap hadir dan tidak menghilang saat keadaan sulit. Bangkit dengan tenang jauh lebih berarti daripada kesempurnaan.",
+    icon: RotateCcw,
+    tone: "orange",
     moodScore: 3,
     urgeScore: 9,
     energyScore: 2,
   },
 ];
 
-const FEELING_PILLS = [
-  "Stress",
+const FEELING_OPTIONS: string[] = [
+  "Tenang",
+  "Lega",
+  "Stres",
   "Bosan",
   "Kesepian",
   "Capek",
-  "Larut malam",
   "Overthinking",
+  "Larut malam",
 ];
+
+function getToneClasses(tone: MainCondition["tone"], isSelected: boolean) {
+  if (!isSelected) {
+    return {
+      card: "border-border bg-surface-soft/50 hover:border-foreground/20 hover:bg-surface-soft",
+      iconWrap: "bg-card text-muted-foreground border border-border/70",
+      radio: "border-border bg-card",
+    };
+  }
+  if (tone === "emerald") {
+    return {
+      card: "border-primary bg-primary-light/70 shadow-xs",
+      iconWrap: "bg-primary text-primary-foreground border border-primary",
+      radio: "border-primary bg-primary text-primary-foreground",
+    };
+  }
+  if (tone === "amber") {
+    return {
+      card: "border-[#EDBF45] bg-[#FEF9E6] dark:bg-amber-950/30 shadow-xs",
+      iconWrap: "bg-[#EDBF45] text-[#071013] border border-[#EDBF45]",
+      radio: "border-[#EDBF45] bg-[#EDBF45] text-[#071013]",
+    };
+  }
+  return {
+    card: "border-[#FF8200] bg-[#FFF5EA] dark:bg-orange-950/30 shadow-xs",
+    iconWrap: "bg-[#FF8200] text-white border border-[#FF8200]",
+    radio: "border-[#FF8200] bg-[#FF8200] text-white",
+  };
+}
 
 export default function UpdateKondisiModal({
   isOpen,
   onClose,
 }: UpdateKondisiModalProps) {
   const supabase = useMemo(() => createClient(), []);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isSavingRef = useRef(false);
 
   const [selectedCondition, setSelectedCondition] = useState<ConditionId | null>(
     null
   );
   const [selectedFeelings, setSelectedFeelings] = useState<string[]>([]);
+  const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const selectedConditionData = MAIN_CONDITIONS.find(
     (condition) => condition.id === selectedCondition
   );
+
+  const resetFormState = useCallback(() => {
+    setSelectedCondition(null);
+    setSelectedFeelings([]);
+    setShowNoteInput(false);
+    setNote("");
+    setErrorMessage("");
+    setIsCompleted(false);
+    setIsSaving(false);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    if (isSaving) return;
+    resetFormState();
+    onClose();
+  }, [isSaving, onClose, resetFormState]);
 
   const toggleFeeling = (feeling: string) => {
     setSelectedFeelings((prev) =>
@@ -106,244 +187,407 @@ export default function UpdateKondisiModal({
     );
   };
 
-  const handleClose = () => {
-    if (isSaving) return;
+  const handleConditionKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    idx: number
+  ) => {
+    let nextIdx: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      nextIdx = (idx + 1) % MAIN_CONDITIONS.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      nextIdx = (idx - 1 + MAIN_CONDITIONS.length) % MAIN_CONDITIONS.length;
+    }
+    if (nextIdx === null) return;
 
-    setSelectedCondition(null);
-    setSelectedFeelings([]);
-    setNote("");
+    e.preventDefault();
+    const target = MAIN_CONDITIONS[nextIdx];
+    setSelectedCondition(target.id);
     setErrorMessage("");
-    onClose();
+
+    const radioButtons =
+      dialogRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    radioButtons?.[nextIdx]?.focus();
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!selectedConditionData) {
-      setErrorMessage("Pilih kondisi utama dulu.");
+      setErrorMessage("Pilih kondisi yang paling mendekati keadaanmu saat ini.");
       return;
     }
 
     setIsSaving(true);
     setErrorMessage("");
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+      if (userError || !user) {
+        awardPetXp(25);
+        setIsSaving(false);
+        setIsCompleted(true);
+        return;
+      }
+
+      const checkinNote = JSON.stringify({
+        condition_id: selectedConditionData.id,
+        condition_label: selectedConditionData.label,
+        feelings: selectedFeelings,
+        user_note: note.trim(),
+      });
+
+      const { error } = await supabase.from("checkins").insert({
+        user_id: user.id,
+        mood_score: selectedConditionData.moodScore,
+        urge_score: selectedConditionData.urgeScore,
+        energy_score: selectedConditionData.energyScore,
+        note: checkinNote,
+      });
+
       setIsSaving(false);
-      setErrorMessage("Sesi login habis. Silakan login ulang.");
-      return;
+
+      if (error) {
+        console.error("Gagal menyimpan checkin:", error);
+        setErrorMessage("Belum berhasil menyimpan check-in. Coba sekali lagi.");
+        return;
+      }
+
+      awardPetXp(25);
+      setIsCompleted(true);
+    } catch (err) {
+      console.warn("Supabase checkins offline fallback:", err);
+      awardPetXp(25);
+      setIsSaving(false);
+      setIsCompleted(true);
     }
-
-    const checkinNote = JSON.stringify({
-      condition_id: selectedConditionData.id,
-      condition_label: selectedConditionData.label,
-      feelings: selectedFeelings,
-      user_note: note.trim(),
-    });
-
-    const { error } = await supabase.from("checkins").insert({
-      user_id: user.id,
-      mood_score: selectedConditionData.moodScore,
-      urge_score: selectedConditionData.urgeScore,
-      energy_score: selectedConditionData.energyScore,
-      note: checkinNote,
-    });
-
-    setIsSaving(false);
-
-    if (error) {
-      console.error("Gagal menyimpan checkin:", error);
-      setErrorMessage("Gagal menyimpan evaluasi. Coba lagi.");
-      return;
-    }
-
-    handleClose();
   };
+
+  useEffect(() => {
+    isSavingRef.current = isSaving;
+  }, [isSaving]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+
+    const timer = window.setTimeout(() => {
+      const firstRadio = dialogRef.current?.querySelector<HTMLButtonElement>(
+        '[role="radio"]'
+      );
+      firstRadio?.focus();
+    }, 20);
+
+    return () => {
+      window.clearTimeout(timer);
+      previousFocusRef.current?.focus();
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSavingRef.current) {
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, handleClose]);
 
   if (!isOpen) return null;
 
+  const needsGroundingSuggestion =
+    selectedCondition === "urge" ||
+    selectedCondition === "heavy" ||
+    selectedCondition === "fallen";
+
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end bg-black/45 px-[12px] pb-[12px] pt-[40px]">
-      <div className="flex max-h-[calc(100dvh-32px)] w-full flex-col overflow-hidden rounded-[28px] bg-white shadow-[0px_18px_60px_rgba(15,23,42,0.28)]">
-        <div className="shrink-0 border-b border-[#F1F5F9] px-[22px] pb-[16px] pt-[18px]">
-          <div className="flex items-start justify-between gap-[16px]">
-            <div>
-              <div className="mb-[8px] inline-flex items-center gap-[6px] rounded-full bg-[#E7F4EE] px-[10px] py-[5px]">
-                <CheckCircle2 className="h-[14px] w-[14px] text-[#2D936C]" />
-                <span className="font-poppins text-[11px] font-bold text-[#2D936C]">
-                  Check-in harian
-                </span>
-              </div>
-
-              <h2 className="font-poppins text-[22px] font-bold tracking-[-0.4px] text-[#0F172A]">
-                Evaluasi Harian
-              </h2>
-
-              <p className="mt-[4px] text-[13px] leading-[19px] text-[#64748B]">
-                Bagaimana kondisi kamu saat ini?
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isSaving}
-              className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#F8FAFC] text-[#0F172A] transition active:scale-95 disabled:opacity-50"
+    <div
+      className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !isSaving) {
+          handleClose();
+        }
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="update-kondisi-title"
+        aria-describedby="update-kondisi-desc"
+        className="flex max-h-[92dvh] w-full max-w-[540px] flex-col overflow-hidden rounded-t-3xl border border-border bg-card text-card-foreground shadow-2xl animate-slideUp sm:rounded-3xl sm:animate-fadeIn"
+      >
+        {/* Header */}
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 px-5 pb-4 pt-5 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
+              Check-in Harian
+            </p>
+            <h2
+              id="update-kondisi-title"
+              className="mt-0.5 font-heading text-xl font-bold tracking-tight text-foreground"
             >
-              <X className="h-[20px] w-[20px]" />
-            </button>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-[22px] py-[18px]">
-          {errorMessage && (
-            <div className="mb-[14px] rounded-[16px] border border-red-100 bg-red-50 px-[14px] py-[12px] text-[13px] font-medium leading-[18px] text-red-600">
-              {errorMessage}
-            </div>
-          )}
-
-          <section>
-            <div className="mb-[12px] flex items-center justify-between">
-              <h3 className="font-poppins text-[14px] font-bold text-[#0F172A]">
-                Kondisi Utama
-              </h3>
-
-              <p className="text-[11px] font-medium text-[#94A3B8]">
-                Pilih satu
+              {isCompleted
+                ? selectedConditionData?.completionTitle ?? "Check-in tersimpan"
+                : "Bagaimana kabarmu saat ini?"}
+            </h2>
+            {!isCompleted && (
+              <p
+                id="update-kondisi-desc"
+                className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm"
+              >
+                Tidak perlu terlihat baik-baik saja. Pilih yang paling jujur menggambarkan kondisimu.
               </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-[12px]">
-              {MAIN_CONDITIONS.map((condition) => {
-                const isSelected = selectedCondition === condition.id;
-
-                return (
-                  <button
-                    key={condition.id}
-                    type="button"
-                    onClick={() => setSelectedCondition(condition.id)}
-                    className={`min-h-[138px] rounded-[22px] border-2 p-[14px] text-left transition active:scale-[0.98] ${isSelected ? condition.selectedColor : condition.color
-                      }`}
-                  >
-                    <div className="mb-[10px] flex h-[38px] w-[38px] items-center justify-center rounded-[14px] bg-white text-[22px] shadow-sm">
-                      {condition.emoji}
-                    </div>
-
-                    <p className="font-poppins text-[14px] font-bold leading-[18px] text-[#0F172A]">
-                      {condition.label}
-                    </p>
-
-                    <p className="mt-[6px] text-[11px] leading-[16px] text-[#64748B]">
-                      {condition.description}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="mt-[22px]">
-            <div className="mb-[12px] flex items-center justify-between">
-              <h3 className="font-poppins text-[14px] font-bold text-[#0F172A]">
-                Apa yang kamu rasakan?
-              </h3>
-
-              <p className="text-[11px] font-medium text-[#94A3B8]">
-                Bisa lebih dari satu
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-[10px]">
-              {FEELING_PILLS.map((feeling) => {
-                const isSelected = selectedFeelings.includes(feeling);
-
-                return (
-                  <button
-                    key={feeling}
-                    type="button"
-                    onClick={() => toggleFeeling(feeling)}
-                    className={`rounded-full px-[16px] py-[10px] font-poppins text-[13px] font-bold transition active:scale-95 ${isSelected
-                        ? "bg-[#2D936C] text-white shadow-[0px_8px_18px_rgba(45,147,108,0.18)]"
-                        : "bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]"
-                      }`}
-                  >
-                    {feeling}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="mt-[22px]">
-            <label className="block">
-              <span className="mb-[10px] block font-poppins text-[14px] font-bold text-[#0F172A]">
-                Catatan singkat
-              </span>
-
-              <textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Contoh: Hari ini agak berat karena capek dan sendirian..."
-                className="min-h-[104px] w-full resize-none rounded-[18px] border border-[#E2E8F0] bg-white px-[14px] py-[12px] text-[13px] leading-[20px] text-[#0F172A] outline-none transition placeholder:text-[#94A3B8] focus:border-[#2D936C]"
-              />
-            </label>
-          </section>
-
-          {selectedConditionData && (
-            <section className="mt-[18px] rounded-[18px] bg-[#F8FAFC] px-[14px] py-[12px]">
-              <p className="font-poppins text-[12px] font-bold text-[#0F172A]">
-                Ringkasan skor
-              </p>
-
-              <div className="mt-[10px] grid grid-cols-3 gap-[8px]">
-                <ScorePreview
-                  label="Mood"
-                  value={selectedConditionData.moodScore}
-                />
-                <ScorePreview
-                  label="Urge"
-                  value={selectedConditionData.urgeScore}
-                />
-                <ScorePreview
-                  label="Energi"
-                  value={selectedConditionData.energyScore}
-                />
-              </div>
-            </section>
-          )}
-        </div>
-
-        <div className="shrink-0 border-t border-[#F1F5F9] bg-white px-[22px] pb-[calc(18px+env(safe-area-inset-bottom))] pt-[14px]">
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!selectedCondition || isSaving}
-            className="h-[52px] w-full rounded-[16px] bg-[#2D936C] font-poppins text-[15px] font-bold text-white hover:bg-[#257B5A] disabled:opacity-60"
-          >
-            {isSaving ? (
-              <span className="flex items-center gap-[8px]">
-                <Loader2 className="h-[18px] w-[18px] animate-spin" />
-                Menyimpan...
-              </span>
-            ) : (
-              "Simpan Evaluasi"
             )}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
+          </div>
 
-function ScorePreview({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-[14px] bg-white px-[10px] py-[10px] text-center shadow-sm">
-      <p className="text-[11px] font-medium text-[#64748B]">{label}</p>
-      <p className="mt-[2px] font-poppins text-[17px] font-bold text-[#2D936C]">
-        {value}/10
-      </p>
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            aria-label="Tutup dialog check-in harian"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-soft/70 text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </header>
+
+        {isCompleted ? (
+          <div className="flex flex-col items-start px-5 py-6 sm:px-6 sm:py-7">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light text-primary">
+              <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+            </div>
+
+            <p
+              id="update-kondisi-desc"
+              className="mt-4 text-sm leading-relaxed text-foreground/90 sm:text-[15px]"
+            >
+              {selectedConditionData?.completionBody}
+            </p>
+
+            {selectedFeelings.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {selectedFeelings.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-lg bg-surface-soft px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+              {needsGroundingSuggestion && (
+                <Link
+                  href="/exercises/breathing"
+                  onClick={handleClose}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-border bg-surface-soft px-4 font-heading text-xs font-bold text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-sm"
+                >
+                  <Wind className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span>Latihan Napas 2 Menit</span>
+                </Link>
+              )}
+
+              <Button
+                type="button"
+                onClick={handleClose}
+                className="min-h-[44px] rounded-xl bg-primary px-6 font-heading text-sm font-bold text-primary-foreground hover:bg-primary-dark"
+              >
+                Selesai
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+              {errorMessage && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                >
+                  {errorMessage}
+                </div>
+              )}
+
+              {/* Step 1: Primary Condition */}
+              <fieldset>
+                <div className="mb-2.5 flex items-baseline justify-between gap-2">
+                  <legend className="font-heading text-sm font-bold text-foreground">
+                    1. Kondisi utama
+                  </legend>
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Pilih satu
+                  </span>
+                </div>
+
+                <div
+                  role="radiogroup"
+                  aria-label="Kondisi utama saat ini"
+                  className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                >
+                  {MAIN_CONDITIONS.map((condition, idx) => {
+                    const isSelected = selectedCondition === condition.id;
+                    const Icon = condition.icon;
+                    const tone = getToneClasses(condition.tone, isSelected);
+
+                    return (
+                      <button
+                        key={condition.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => {
+                          setSelectedCondition(condition.id);
+                          setErrorMessage("");
+                        }}
+                        onKeyDown={(e) => handleConditionKeyDown(e, idx)}
+                        className={`group flex min-h-[76px] items-start gap-3 rounded-2xl border p-3.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.99] ${tone.card}`}
+                      >
+                        <span
+                          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${tone.iconWrap}`}
+                        >
+                          <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                        </span>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-heading text-sm font-bold text-foreground">
+                              {condition.label}
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${tone.radio}`}
+                            >
+                              {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                            {condition.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedConditionData && (
+                  <p className="mt-2.5 rounded-xl bg-surface-soft px-3.5 py-2.5 text-xs leading-relaxed text-foreground/85">
+                    {selectedConditionData.empathyLine}
+                  </p>
+                )}
+              </fieldset>
+
+              {/* Step 2: Feelings */}
+              <section aria-labelledby="feelings-label">
+                <div className="mb-2.5 flex items-baseline justify-between gap-2">
+                  <h3
+                    id="feelings-label"
+                    className="font-heading text-sm font-bold text-foreground"
+                  >
+                    2. Apa yang sedang terasa?
+                  </h3>
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Opsional · boleh lebih dari satu
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {FEELING_OPTIONS.map((feeling) => {
+                    const isSelected = selectedFeelings.includes(feeling);
+
+                    return (
+                      <button
+                        key={feeling}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => toggleFeeling(feeling)}
+                        className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-95 ${
+                          isSelected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground/85 hover:bg-surface-soft"
+                        }`}
+                      >
+                        {isSelected && (
+                          <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        )}
+                        <span>{feeling}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Step 3: Compact Optional Note */}
+              <section>
+                {showNoteInput || note.length > 0 ? (
+                  <label className="block">
+                    <span className="mb-1.5 flex items-center justify-between text-xs font-bold text-foreground">
+                      <span>3. Catatan singkat</span>
+                      <span className="font-normal text-muted-foreground">
+                        Opsional
+                      </span>
+                    </span>
+                    <textarea
+                      ref={textareaRef}
+                      value={note}
+                      onChange={(event) => setNote(event.target.value)}
+                      rows={2}
+                      placeholder="Satu kalimat saja cukup, misalnya pemicu atau hal kecil yang membantu..."
+                      className="min-h-[72px] w-full resize-none rounded-xl border border-input bg-surface-soft/60 px-3.5 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-primary focus:bg-card focus:outline-none"
+                    />
+                  </label>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNoteInput(true);
+                      window.requestAnimationFrame(() => textareaRef.current?.focus());
+                    }}
+                    className="inline-flex min-h-[42px] items-center gap-1.5 rounded-xl border border-dashed border-border px-3.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Tambah catatan singkat (opsional)</span>
+                  </button>
+                )}
+              </section>
+            </div>
+
+            {/* Footer Actions */}
+            <footer className="flex shrink-0 items-center justify-end gap-2.5 border-t border-border/80 bg-card px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3.5 sm:px-6 sm:pb-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={isSaving}
+                className="min-h-[44px] rounded-xl px-4 font-heading text-xs font-bold sm:text-sm"
+              >
+                Nanti saja
+              </Button>
+
+              <Button
+                type="submit"
+                disabled={!selectedCondition || isSaving}
+                className="min-h-[44px] flex-1 rounded-xl bg-primary px-5 font-heading text-xs font-bold text-primary-foreground hover:bg-primary-dark disabled:opacity-50 sm:flex-none sm:text-sm"
+              >
+                {isSaving ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span>Menyimpan...</span>
+                  </span>
+                ) : (
+                  "Simpan Check-in"
+                )}
+              </Button>
+            </footer>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

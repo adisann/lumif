@@ -1,202 +1,453 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Mail, ShieldCheck, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Mail,
+  ShieldCheck,
+  X,
+  UserPlus,
+  LogIn,
+  CheckCircle2,
+  Compass,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-
-const LOGO_URL = "/assets/Logo Lumif.png";
+import LumifLogo from "@/components/LumifLogo";
+import {
+  hasChosenStarterPet,
+  markStarterChoicePending,
+} from "@/lib/pets";
+import {
+  loadOnboardingData,
+  syncOnboardingToSupabase,
+} from "@/lib/onboarding";
 
 export default function LoginScreen() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("lumif");
-  const [remember, setRemember] = useState(false);
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const navigateAfterAuth = () => {
+    router.replace(hasChosenStarterPet() ? "/home" : "/choose-pet");
+  };
 
+  const handleDemoLogin = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        "lumif_demo_user",
+        JSON.stringify({ email: "demo@lumif.local", name: "Sobat Lumif" })
+      );
+    }
+    navigateAfterAuth();
+  };
+
+  const handleForgotPassword = async () => {
     setErrorMessage("");
-    setIsLoading(true);
+    setSuccessMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setIsLoading(false);
-
-    if (error) {
-      setErrorMessage("Email atau kata sandi belum cocok");
+    if (!email.trim()) {
+      setErrorMessage("Masukkan emailmu dulu untuk mengirim tautan reset kata sandi.");
       return;
     }
 
-    router.replace("/home");
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/login`,
+      });
+      if (error) {
+        setErrorMessage(error.message || "Gagal mengirim tautan reset.");
+      } else {
+        setSuccessMessage("Jika email terdaftar, tautan reset kata sandi telah dikirim.");
+      }
+    } catch {
+      setErrorMessage(
+        "Server Supabase belum terjangkau. Gunakan tombol Masuk Mode Demo (Offline) untuk mencoba aplikasi."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsLoading(true);
+
+    const isFetchError = (err: unknown) => {
+      if (!err || typeof err !== "object") return false;
+      const e = err as { name?: string; message?: string; status?: number };
+      return (
+        e.name === "AuthRetryableFetchError" ||
+        e.status === 0 ||
+        e.status === 503 ||
+        Boolean(e.message && /failed to fetch|network|fetch|supabase_unreachable|555|tidak dapat dijangkau/i.test(e.message))
+      );
+    };
+
+    try {
+      if (mode === "signup") {
+        markStarterChoicePending();
+        const onboardingDraft = loadOnboardingData();
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: onboardingDraft
+            ? {
+                data: {
+                  onboarding: onboardingDraft,
+                },
+              }
+            : undefined,
+        });
+
+        if (error) {
+          if (isFetchError(error)) {
+            setErrorMessage(
+              "Server Supabase sedang bermasalah atau paused (HTTP 555 / tidak terjangkau), sehingga akun belum tersimpan ke database. Cek status project di Dashboard Supabase atau klik 'Masuk Mode Demo (Offline)' di bawah."
+            );
+            return;
+          }
+          if (/rate limit/i.test(error.message)) {
+            setErrorMessage(
+              "Batas kirim email verifikasi Supabase (2 email/jam) tercapai. Matikan 'Confirm email' di Supabase Dashboard (Authentication -> Providers -> Email) atau gunakan Mode Demo (Offline) di bawah."
+            );
+            return;
+          }
+          if (/already registered/i.test(error.message)) {
+            setErrorMessage(
+              "Email ini sudah terdaftar. Silakan pindah ke tab Masuk di atas untuk login."
+            );
+            return;
+          }
+          setErrorMessage(error.message || "Gagal membuat akun. Silakan coba lagi.");
+          return;
+        }
+
+        if (data.session) {
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem("lumif_demo_user");
+          }
+          await syncOnboardingToSupabase(supabase, onboardingDraft ?? undefined);
+          router.replace("/choose-pet");
+        } else {
+          setSuccessMessage(
+            "Akun berhasil dibuat. Rencana onboardingmu sudah ikut dilampirkan ke pendaftaran. Silakan konfirmasi email lalu masuk."
+          );
+          setMode("login");
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          if (isFetchError(error)) {
+            setErrorMessage(
+              "Server Supabase tidak dapat dijangkau. Cek URL Supabase di .env.local atau gunakan tombol 'Masuk Mode Demo (Offline)'."
+            );
+            return;
+          }
+          setErrorMessage(error.message || "Email atau kata sandi belum cocok.");
+          return;
+        }
+
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem("lumif_demo_user");
+        }
+        await syncOnboardingToSupabase(supabase);
+        navigateAfterAuth();
+      }
+    } catch {
+      setErrorMessage(
+        "Gagal terhubung ke Supabase (server sedang gangguan/paused). Cek Dashboard Supabase atau gunakan tombol 'Masuk Mode Demo (Offline)' di bawah."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-col overflow-y-auto bg-[#FAFAFA] px-6 font-lexend text-[#101828]">
-      <header className="z-10 flex h-[96px] shrink-0 items-center justify-between pt-6">
+    <main className="relative flex min-h-dvh w-full flex-col bg-surface-soft font-sans text-foreground">
+      <header className="mx-auto flex h-20 w-full max-w-5xl shrink-0 items-center justify-between px-6 pt-4">
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex size-12 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white shadow-sm transition active:scale-95"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-xs transition hover:bg-muted active:scale-95"
           aria-label="Kembali"
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDemoLogin}
+          className="min-h-[44px] rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-primary shadow-xs transition hover:bg-muted active:scale-95"
+        >
+          Coba Mode Demo
         </button>
       </header>
 
-      {errorMessage && (
-        <div className="animate-fadeIn mb-3 flex min-h-12 items-center justify-between rounded-lg bg-[#111827] px-4 py-3 text-white shadow-lg">
-          <div className="flex items-center gap-3">
-            <span className="flex size-6 items-center justify-center rounded-full bg-[#DC2626]">
-              <X className="size-4" />
-            </span>
-            <p className="text-sm">{errorMessage}</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setErrorMessage("")}
-            className="rounded-md p-1 transition hover:bg-white/10"
-            aria-label="Tutup pesan error"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
-
-      <section className="flex flex-1 flex-col justify-center pb-[calc(48px+env(safe-area-inset-bottom))]">
-        <div className="animate-fadeInUp">
-          <div className="mb-10 flex justify-center">
-            <div className="relative h-[92px] w-[164px] animate-pulse-soft">
-              <Image
-                src={LOGO_URL}
-                alt="Lumif Logo"
-                fill
-                sizes="164px"
-                className="object-contain"
-                priority
-                unoptimized
-              />
-            </div>
-          </div>
-
-          <div className="text-center">
-            <p className="mx-auto mb-3 flex w-fit items-center gap-2 rounded-full bg-[#EAF7F1] px-3 py-1 text-xs font-bold text-[#2D936C]">
-              <ShieldCheck className="size-4" />
-              Ruang amanmu
+      <section className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 pb-12 pt-4">
+        <div className="grid w-full grid-cols-1 items-center gap-8 lg:grid-cols-12">
+          {/* Desktop Context Panel */}
+          <div className="hidden flex-col gap-5 rounded-3xl bg-[#257B5A] p-8 text-white lg:col-span-6 lg:flex">
+            <h2 className="font-heading text-2xl font-bold leading-snug">
+              Ruang tenang untuk membangun kendali diri setiap hari
+            </h2>
+            <p className="text-sm leading-relaxed text-white/90">
+              Catat intensitas dorongan, latih pernapasan terpandu saat gelombang datang, dan pelajari materi CBT serta ACT tanpa rasa dihakimi.
             </p>
-            <h1 className="font-poppins text-[26px] font-bold leading-tight tracking-normal">
-              Selamat datang kembali
-            </h1>
-            <p className="mx-auto mt-4 max-w-[320px] text-sm leading-6 text-[#667085]">
-              Masuk untuk menyimpan hasil quiz, memantau progres, dan melanjutkan
-              misi hari ini.
-            </p>
+            <ul className="space-y-2 text-xs text-white/90">
+              <li>1. Check-in harian dan evaluasi pemicu pribadi</li>
+              <li>2. Akses darurat 4-4 saat dorongan memuncak</li>
+              <li>3. Mode Demo tersedia penuh ketika server offline</li>
+            </ul>
           </div>
 
-          <form onSubmit={handleLogin} className="mt-10">
-            <div className="space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold">Email</span>
-                <div className="flex h-[50px] items-center gap-3 rounded-lg border border-[#D0D5DD] bg-white px-3 shadow-sm focus-within:border-[#2D936C]">
-                  <Mail className="size-5 shrink-0 text-[#667085]" />
-                  <input
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    type="email"
-                    placeholder="nama@email.com"
-                    className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none"
-                    required
-                  />
-                </div>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold">Kata sandi</span>
-                <div className="flex h-[50px] items-center gap-3 rounded-lg border border-[#D0D5DD] bg-white px-3 shadow-sm focus-within:border-[#2D936C]">
-                  <input
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Kata sandi"
-                    className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="rounded-md p-1 text-[#667085] transition hover:bg-[#F2F4F7]"
-                    aria-label={
-                      showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-5" />
-                    ) : (
-                      <Eye className="size-5" />
-                    )}
-                  </button>
-                </div>
-              </label>
-
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={() => setRemember((prev) => !prev)}
-                  className="flex items-center gap-2"
-                >
-                  <span
-                    className={cn(
-                      "flex size-5 items-center justify-center rounded border transition",
-                      remember
-                        ? "border-[#2D936C] bg-[#2D936C] text-white"
-                        : "border-[#D0D5DD] bg-white",
-                    )}
-                  >
-                    {remember && <ShieldCheck className="size-3.5" />}
+          {/* Auth Card */}
+          <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8 lg:col-span-6">
+            {errorMessage && (
+              <div
+                role="alert"
+                className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-[#111827] px-4 py-3 text-white shadow-sm"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#D82C1C]">
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
-                  <span className="text-sm text-[#475467]">Tetap masuk</span>
-                </button>
+                  <p className="text-xs leading-relaxed">{errorMessage}</p>
+                </div>
 
                 <button
                   type="button"
-                  className="text-sm font-bold text-[#2D936C]"
+                  onClick={() => setErrorMessage("")}
+                  className="rounded-md p-1.5 transition hover:bg-white/10"
+                  aria-label="Tutup pesan error"
                 >
-                  Lupa kata sandi?
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
+            )}
+
+            {successMessage && (
+              <div
+                role="status"
+                className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-[#257B5A] px-4 py-3 text-white shadow-sm"
+              >
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <p className="text-xs leading-relaxed">{successMessage}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSuccessMessage("")}
+                  className="rounded-md p-1.5 transition hover:bg-white/10"
+                  aria-label="Tutup pesan sukses"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+
+            <div className="mb-5 flex justify-center">
+              <LumifLogo size="md" priority />
             </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading || !email || !password}
-              className="mt-10 h-[52px] w-full rounded-lg bg-[#2D936C] font-poppins text-base font-bold text-white shadow-[0_12px_28px_rgba(45,147,108,0.2)] hover:bg-[#257A5A]"
-            >
-              {isLoading ? "Memproses..." : "Masuk"}
-            </Button>
-          </form>
+            <div className="text-center">
+              <h1 className="font-heading text-2xl font-bold leading-tight text-card-foreground">
+                {mode === "login" ? "Selamat Datang Kembali" : "Daftar Akun Lumif"}
+              </h1>
+              <p className="mx-auto mt-1.5 max-w-xs text-xs leading-5 text-muted-foreground">
+                {mode === "login"
+                  ? "Masuk untuk melanjutkan misi, riwayat hasrat, dan progres pemulihanmu."
+                  : "Buat akun untuk menyimpan hasil refleksi dan melacak kebiasaan barumu."}
+              </p>
+            </div>
 
-          <p className="mt-8 text-center text-sm text-[#475467]">
-            Belum punya akun?{" "}
-            <button
-              type="button"
-              onClick={() => router.push("/onboarding")}
-              className="font-bold text-[#2D936C]"
-            >
-              Mulai onboarding
-            </button>
-          </p>
+            <div className="mt-5 flex rounded-xl bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setErrorMessage("");
+                }}
+                className={`flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg font-heading text-xs font-bold transition-colors ${
+                  mode === "login"
+                    ? "bg-card text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LogIn className="h-4 w-4" aria-hidden="true" />
+                Masuk
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setErrorMessage("");
+                }}
+                className={`flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg font-heading text-xs font-bold transition-colors ${
+                  mode === "signup"
+                    ? "bg-card text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <UserPlus className="h-4 w-4" aria-hidden="true" />
+                Daftar Baru
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-5">
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-card-foreground">
+                    Email
+                  </span>
+                  <div className="flex h-12 items-center gap-3 overflow-hidden rounded-xl border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
+                    <Mail
+                      className="h-4 w-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <input
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      type="email"
+                      placeholder="nama@email.com"
+                      className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+                      required
+                    />
+                  </div>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-card-foreground">
+                    Kata Sandi
+                  </span>
+                  <div className="flex h-12 items-center gap-3 overflow-hidden rounded-xl border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
+                    <input
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Minimal 6 karakter"
+                      className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+                      minLength={6}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted"
+                      aria-label={
+                        showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+                </label>
+
+                {mode === "login" && (
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setRemember((prev) => !prev)}
+                      aria-pressed={remember}
+                      className="flex min-h-[44px] items-center gap-2"
+                    >
+                      <span
+                        className={cn(
+                          "flex h-4 w-4 items-center justify-center rounded border transition",
+                          remember
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-input bg-background"
+                        )}
+                      >
+                        {remember && <ShieldCheck className="h-3 w-3" aria-hidden="true" />}
+                      </span>
+                      <span className="text-xs text-muted-foreground">Tetap masuk</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="min-h-[44px] text-xs font-bold text-primary hover:underline"
+                    >
+                      Lupa kata sandi?
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading || !email || !password}
+                className="mt-5 h-12 w-full rounded-xl bg-primary font-heading text-sm font-bold text-primary-foreground hover:bg-primary-dark"
+              >
+                {isLoading
+                  ? "Memproses..."
+                  : mode === "login"
+                  ? "Masuk ke Akun"
+                  : "Daftar Akun Baru"}
+              </Button>
+
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary bg-primary-light/60 font-heading text-xs font-bold text-primary transition hover:bg-primary-light"
+              >
+                <Compass className="h-4 w-4" aria-hidden="true" />
+                Masuk Mode Demo (Offline)
+              </button>
+            </form>
+
+            <p className="mt-5 text-center text-xs text-muted-foreground">
+              {mode === "login" ? (
+                <>
+                  Belum punya akun?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("signup")}
+                    className="font-bold text-primary hover:underline"
+                  >
+                    Daftar sekarang
+                  </button>
+                </>
+              ) : (
+                <>
+                  Sudah punya akun?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("login")}
+                    className="font-bold text-primary hover:underline"
+                  >
+                    Masuk di sini
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
         </div>
       </section>
     </main>

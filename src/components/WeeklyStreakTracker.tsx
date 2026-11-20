@@ -1,8 +1,6 @@
 "use client";
 
-import { HiCheck, HiFire, HiLockClosed } from "react-icons/hi2";
-
-const DAYS_OF_WEEK = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+import { Check, Flame, Lock } from "lucide-react";
 
 type DayStatus = "done" | "today" | "missed" | "locked";
 
@@ -63,22 +61,20 @@ interface WeeklyStreakTrackerProps {
 }
 
 const statusStyle: Record<DayStatus, string> = {
-  done: "bg-[#2D936C] text-white border-[#2D936C]",
-  today: "bg-[#FF9F1C] text-white border-[#FF9F1C] shadow-[0px_8px_18px_rgba(255,159,28,0.28)]",
-  missed: "bg-[#777C7A] text-white border-[#777C7A]",
-  locked: "bg-[#F2F3F5] text-[#9CA3AF] border-[#ECEEF2]",
+  done: "bg-primary text-white border-primary",
+  today: "bg-accent-gold text-white border-accent-gold shadow-md shadow-accent-gold/25",
+  missed: "bg-muted-foreground/50 text-white border-transparent",
+  locked: "bg-muted/70 text-muted-foreground border-border/60",
 };
 
 const circleStyle: Record<DayStatus, string> = {
   done: "bg-white/25 text-white",
   today: "bg-white/25 text-white",
   missed: "bg-white/20 text-white",
-  locked: "bg-white text-[#A5ACB8] border border-[#E2E5EA]",
+  locked: "bg-white text-muted-foreground border border-border/80",
 };
 
-
 export default function WeeklyStreakTracker({
-
   weekData = DUMMY_WEEKLY_DATA,
 }: WeeklyStreakTrackerProps) {
   const completedCount = weekData.filter((item) => item.status === "done" || item.status === "today").length;
@@ -86,68 +82,68 @@ export default function WeeklyStreakTracker({
   const todayData = weekData.find((item) => item.status === "today");
 
   return (
-    <section className="mb-[24px] px-[24px]">
-      <div className="mb-[12px] flex items-center justify-between">
+    <section className="mb-6 px-6">
+      <div className="mb-3 flex items-center justify-between">
         <div>
-          <p className="font-poppins text-[12px] font-bold text-black">Weekly Streak</p>
-          <p className="mt-[2px] font-poppins text-[11px] text-[#8B8FA0]">
-            Dummy data minggu ini
+          <p className="font-poppins text-xs font-bold uppercase tracking-wider text-muted-foreground">Weekly Streak</p>
+          <p className="mt-0.5 text-xs text-muted-foreground/80">
+            Aktivitas minggu ini
           </p>
         </div>
 
-        <div className="flex items-center gap-[6px] rounded-full bg-[#FFF3DF] px-[10px] py-[6px] font-poppins text-[11px] font-bold text-[#FF8A00]">
-          <HiFire className="h-[14px] w-[14px]" />
+        <div className="flex items-center gap-1.5 rounded-full bg-accent-gold/15 px-3 py-1 font-poppins text-xs font-bold text-accent-gold">
+          <Flame className="h-3.5 w-3.5 fill-current" />
           {cleanStreak} hari bersih
         </div>
       </div>
 
-      <div className="rounded-[16px] bg-white p-[16px] shadow-[0px_3px_22px_rgba(0,0,0,0.1)]">
-        <div className="grid grid-cols-7 gap-[6px]">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+        <div className="grid grid-cols-7 gap-1.5">
           {weekData.map((item) => (
             <button
               key={`${item.day}-${item.date}`}
               type="button"
               title={`${item.day}, ${item.date}: ${item.activities.join(", ")}`}
-              className={`flex min-h-[84px] flex-col items-center justify-between rounded-[14px] border p-[7px] transition active:scale-95 ${statusStyle[item.status]}`}
+              className={`flex min-h-[84px] flex-col items-center justify-between rounded-xl border p-2 transition active:scale-95 ${statusStyle[item.status]}`}
             >
               <span className="font-poppins text-[10px] font-bold uppercase leading-none">
                 {item.day}
               </span>
 
-              <span className="font-poppins text-[13px] font-bold leading-none">
+              <span className="font-poppins text-xs font-bold leading-none">
                 {item.date}
               </span>
 
-              <span className={`flex h-[26px] w-[26px] items-center justify-center rounded-full ${circleStyle[item.status]}`}>
+              <span className={`flex h-6 w-6 items-center justify-center rounded-full ${circleStyle[item.status]}`}>
                 {(item.status === "done" || item.status === "today") && (
-                  <HiCheck className="h-[15px] w-[15px]" />
+                  <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                 )}
-                {item.status === "missed" && <span className="text-[13px]">•</span>}
-                {item.status === "locked" && <HiLockClosed className="h-[13px] w-[13px]" />}
+                {item.status === "missed" && <span className="text-xs leading-none">•</span>}
+                {item.status === "locked" && <Lock className="h-3 w-3" />}
               </span>
             </button>
           ))}
         </div>
 
-        <div className="mt-[14px] rounded-[14px] bg-[#F7F8FA] px-[12px] py-[10px]">
-          <div className="mb-[8px] flex items-center justify-between">
-            <p className="font-poppins text-[11px] font-bold text-[#28293D]">
+        <div className="mt-3.5 rounded-xl border border-border/60 bg-muted/40 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="font-poppins text-xs font-semibold text-foreground">
               Ringkasan Minggu Ini
             </p>
-            <p className="font-poppins text-[11px] font-bold text-[#2D936C]">
+            <p className="font-poppins text-xs font-bold text-primary">
               {completedCount}/7 aktif
             </p>
           </div>
 
-          <div className="h-[8px] overflow-hidden rounded-full bg-[#E8EBEF]">
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-[#2D936C] transition-all"
+              className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${(completedCount / 7) * 100}%` }}
             />
           </div>
 
-          <p className="mt-[8px] font-poppins text-[11px] leading-[17px] text-[#6F7280]">
-            Hari ini: <span className="font-bold text-[#28293D]">{todayData?.activities[0] ?? "Belum ada aktivitas"}</span>. Lanjutkan misi kecil supaya streak tetap jalan.
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Hari ini: <span className="font-semibold text-foreground">{todayData?.activities[0] ?? "Belum ada aktivitas"}</span>. Lanjutkan misi kecil agar streak tetap terjaga.
           </p>
         </div>
       </div>

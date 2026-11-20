@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   CheckCircle2,
@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { awardPetXp } from "@/lib/pets";
 
 type UrgeCheckInModalProps = {
   isOpen: boolean;
@@ -110,51 +111,76 @@ export default function UrgeCheckInModal({
     setIsSaving(true);
     setErrorMessage("");
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+      if (userError || !user) {
+        awardPetXp(20);
+        setSaved(true);
+        setIsSaving(false);
+        return;
+      }
+
+      const checkinNote = JSON.stringify({
+        type: "urge_log",
+        status,
+        intensity,
+        triggers: selectedTriggers,
+        context: selectedContext,
+        actions: selectedActions,
+        user_note: note.trim(),
+      });
+
+      const { error } = await supabase.from("checkins").insert({
+        user_id: user.id,
+        mood_score: moodScore,
+        urge_score: intensity,
+        energy_score: energyScore,
+        note: checkinNote,
+      });
+
       setIsSaving(false);
-      setErrorMessage("Sesi login habis. Silakan login ulang.");
-      return;
+
+      if (error) {
+        console.error("Gagal menyimpan catatan hasrat:", error);
+        setErrorMessage("Gagal menyimpan catatan. Coba lagi.");
+        return;
+      }
+
+      awardPetXp(20);
+      setSaved(true);
+    } catch (err) {
+      console.warn("Supabase UrgeCheckIn offline fallback:", err);
+      awardPetXp(20);
+      setSaved(true);
+      setIsSaving(false);
     }
-
-    const checkinNote = JSON.stringify({
-      type: "urge_log",
-      status,
-      intensity,
-      triggers: selectedTriggers,
-      context: selectedContext,
-      actions: selectedActions,
-      user_note: note.trim(),
-    });
-
-    const { error } = await supabase.from("checkins").insert({
-      user_id: user.id,
-      mood_score: moodScore,
-      urge_score: intensity,
-      energy_score: energyScore,
-      note: checkinNote,
-    });
-
-    setIsSaving(false);
-
-    if (error) {
-      console.error("Gagal menyimpan catatan hasrat:", error);
-      setErrorMessage("Gagal menyimpan catatan. Coba lagi.");
-      return;
-    }
-
-    setSaved(true);
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSaving) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, isSaving, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end bg-black/45 px-3 pb-3 pt-10 font-lexend">
-      <div className="flex max-h-[calc(100dvh-24px)] w-full flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_18px_60px_rgba(15,23,42,0.28)]">
+    <div
+      className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 px-3 pb-3 pt-10 font-lexend md:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="urge-checkin-title"
+    >
+      <div className="flex max-h-[calc(100dvh-24px)] w-full max-w-lg flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_18px_60px_rgba(15,23,42,0.28)]">
         <div className="shrink-0 border-b border-[#F1F5F9] px-6 pb-5 pt-5">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -165,7 +191,7 @@ export default function UrgeCheckInModal({
                 </span>
               </div>
 
-              <h2 className="font-poppins text-[23px] font-bold leading-tight text-[#0F172A]">
+              <h2 id="urge-checkin-title" className="font-poppins text-[23px] font-bold leading-tight text-[#0F172A]">
                 Catat dorongan yang muncul
               </h2>
               <p className="mt-2 max-w-[310px] text-[13px] leading-5 text-[#64748B]">
@@ -395,7 +421,7 @@ function PillSection({
         <h3 className="font-poppins text-[14px] font-bold text-[#0F172A]">
           {title}
         </h3>
-        <span className="shrink-0 text-[11px] font-medium text-[#94A3B8]">
+        <span className="shrink-0 text-[11px] font-medium text-[#475569]">
           {helper}
         </span>
       </div>

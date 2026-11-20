@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => {};
+function useIsClient() {
+    return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 import {
     Bar,
     BarChart,
     CartesianGrid,
-    Cell,
     Line,
     LineChart,
     ResponsiveContainer,
@@ -14,11 +18,11 @@ import {
     YAxis,
 } from "recharts";
 import {
-    HiArrowTrendingUp,
-    HiCalendarDays,
-    HiChartBar,
-    HiCheckCircle,
-} from "react-icons/hi2";
+    TrendingUp,
+    Calendar,
+    BarChart3,
+    CheckCircle2,
+} from "lucide-react";
 
 type CheckInDatum = {
     month: string;
@@ -257,6 +261,8 @@ function InsightCard({ children }: { children: React.ReactNode }) {
 }
 
 export function CheckInTrendChart() {
+    const isClient = useIsClient();
+
     const [selectedMonth, setSelectedMonth] = useState<CheckInDatum>(
         DUMMY_CHECKIN_DATA[DUMMY_CHECKIN_DATA.length - 1]
     );
@@ -269,7 +275,7 @@ export function CheckInTrendChart() {
     return (
         <InsightCard>
             <SectionHeader
-                icon={<HiArrowTrendingUp className="h-[20px] w-[20px]" />}
+                icon={<TrendingUp className="h-[20px] w-[20px]" />}
                 eyebrow="Statistik Check-in"
                 title="Dorongan Muncul"
                 rightLabel={`Avg ${averageStress}`}
@@ -288,39 +294,43 @@ export function CheckInTrendChart() {
             </div>
 
             <div className="h-[220px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                        data={DUMMY_CHECKIN_DATA}
-                        barGap={8}
-                        barCategoryGap={22}
-                        onClick={(state) => {
-                            const chartState = state as unknown as RechartsClickState<CheckInDatum>;
-                            const payload = chartState.activePayload?.[0]?.payload;
+                {isClient ? (
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+                        <BarChart
+                            data={DUMMY_CHECKIN_DATA}
+                            barGap={8}
+                            barCategoryGap={22}
+                            onClick={(state) => {
+                                const chartState = state as unknown as RechartsClickState<CheckInDatum>;
+                                const payload = chartState.activePayload?.[0]?.payload;
 
-                            if (payload) {
-                                setSelectedMonth(payload);
-                            }
-                        }}
-                    >
-                        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#E4E7EF" />
-                        <XAxis
-                            dataKey="month"
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 12, fill: "#676A7D" }}
-                        />
-                        <YAxis
-                            width={24}
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 11, fill: "#73758A" }}
-                            domain={[0, 10]}
-                        />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(27,142,90,0.06)" }} />
-                        <Bar name="Stress" dataKey="stress" radius={[6, 6, 0, 0]} fill="#FF7A00" />
-                        <Bar name="Tenang" dataKey="tenang" radius={[6, 6, 0, 0]} fill="#FFC766" />
-                    </BarChart>
-                </ResponsiveContainer>
+                                if (payload) {
+                                    setSelectedMonth(payload);
+                                }
+                            }}
+                        >
+                            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#E4E7EF" />
+                            <XAxis
+                                dataKey="month"
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 12, fill: "#676A7D" }}
+                            />
+                            <YAxis
+                                width={24}
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 11, fill: "#73758A" }}
+                                domain={[0, 10]}
+                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(27,142,90,0.06)" }} />
+                            <Bar name="Stress" dataKey="stress" radius={[6, 6, 0, 0]} fill="#FF7A00" />
+                            <Bar name="Tenang" dataKey="tenang" radius={[6, 6, 0, 0]} fill="#FFC766" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full w-full rounded-[16px] bg-neutral-100/70 animate-pulse" />
+                )}
             </div>
 
             <button
@@ -352,7 +362,7 @@ export function ModuleProgressChart() {
     return (
         <InsightCard>
             <SectionHeader
-                icon={<HiCheckCircle className="h-[20px] w-[20px]" />}
+                icon={<CheckCircle2 className="h-[20px] w-[20px]" />}
                 eyebrow="Pembelajaran"
                 title="Progres Modul (%)"
                 rightLabel={`${completedModules}/${DUMMY_MODULE_DATA.length} selesai`}
@@ -409,6 +419,8 @@ export function ModuleProgressChart() {
 }
 
 export function RoutineCompletionChart() {
+    const isClient = useIsClient();
+
     const [selectedRoutine, setSelectedRoutine] = useState<RoutineDatum>(
         DUMMY_ROUTINE_DATA[4]
     );
@@ -421,69 +433,73 @@ export function RoutineCompletionChart() {
     return (
         <InsightCard>
             <SectionHeader
-                icon={<HiCalendarDays className="h-[20px] w-[20px]" />}
+                icon={<Calendar className="h-[20px] w-[20px]" />}
                 eyebrow="Rata-Rata Penyelesaian Rutinitas"
                 title={`${averageRoutine} rutinitas`}
                 rightLabel="Mingguan"
             />
 
             <div className="h-[220px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                        data={DUMMY_ROUTINE_DATA}
-                        margin={{ top: 16, right: 8, left: -16, bottom: 0 }}
-                        onClick={(state) => {
-                            const chartState = state as unknown as RechartsClickState<RoutineDatum>;
-                            const payload = chartState.activePayload?.[0]?.payload;
+                {isClient ? (
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+                        <LineChart
+                            data={DUMMY_ROUTINE_DATA}
+                            margin={{ top: 16, right: 8, left: -16, bottom: 0 }}
+                            onClick={(state) => {
+                                const chartState = state as unknown as RechartsClickState<RoutineDatum>;
+                                const payload = chartState.activePayload?.[0]?.payload;
 
-                            if (payload) {
-                                setSelectedRoutine(payload);
-                            }
-                        }}
-                    >
-                        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#E4E7EF" />
-                        <XAxis
-                            dataKey="day"
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 12, fill: "#676A7D" }}
-                        />
-                        <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fontSize: 11, fill: "#73758A" }}
-                            domain={[0, 4]}
-                        />
-                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#1B8E5A", strokeDasharray: "4 4" }} />
-                        <Line
-                            name="Rutinitas selesai"
-                            type="monotone"
-                            dataKey="completed"
-                            stroke="#FFB238"
-                            strokeWidth={4}
-                            dot={({ cx, cy, payload }) => {
-                                const isSelected = payload.day === selectedRoutine.day;
+                                if (payload) {
+                                    setSelectedRoutine(payload);
+                                }
+                            }}
+                        >
+                            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#E4E7EF" />
+                            <XAxis
+                                dataKey="day"
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 12, fill: "#676A7D" }}
+                            />
+                            <YAxis
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 11, fill: "#73758A" }}
+                                domain={[0, 4]}
+                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#1B8E5A", strokeDasharray: "4 4" }} />
+                            <Line
+                                name="Rutinitas selesai"
+                                type="monotone"
+                                dataKey="completed"
+                                stroke="#FFB238"
+                                strokeWidth={4}
+                                dot={({ cx, cy, payload }) => {
+                                    const isSelected = payload.day === selectedRoutine.day;
 
-                                return (
-                                    <circle
-                                        cx={cx}
-                                        cy={cy}
-                                        r={isSelected ? 7 : 5}
-                                        fill={isSelected ? "#1B8E5A" : "#FFB238"}
-                                        stroke="#FFFFFF"
-                                        strokeWidth={3}
-                                    />
-                                );
-                            }}
-                            activeDot={{
-                                r: 8,
-                                fill: "#1B8E5A",
-                                stroke: "#FFFFFF",
-                                strokeWidth: 3,
-                            }}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
+                                    return (
+                                        <circle
+                                            cx={cx}
+                                            cy={cy}
+                                            r={isSelected ? 7 : 5}
+                                            fill={isSelected ? "#1B8E5A" : "#FFB238"}
+                                            stroke="#FFFFFF"
+                                            strokeWidth={3}
+                                        />
+                                    );
+                                }}
+                                activeDot={{
+                                    r: 8,
+                                    fill: "#1B8E5A",
+                                    stroke: "#FFFFFF",
+                                    strokeWidth: 3,
+                                }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full w-full rounded-[16px] bg-neutral-100/70 animate-pulse" />
+                )}
             </div>
 
             <div className="mt-[14px] rounded-[18px] bg-[#F7F8FA] px-[14px] py-[12px]">
@@ -517,17 +533,17 @@ export default function InteractiveInsightCharts() {
         {
             id: "checkin",
             label: "Check-in",
-            icon: <HiChartBar className="h-[16px] w-[16px]" />,
+            icon: <BarChart3 className="h-[16px] w-[16px]" />,
         },
         {
             id: "module",
             label: "Modul",
-            icon: <HiCheckCircle className="h-[16px] w-[16px]" />,
+            icon: <CheckCircle2 className="h-[16px] w-[16px]" />,
         },
         {
             id: "routine",
             label: "Rutinitas",
-            icon: <HiCalendarDays className="h-[16px] w-[16px]" />,
+            icon: <Calendar className="h-[16px] w-[16px]" />,
         },
     ] as const;
 

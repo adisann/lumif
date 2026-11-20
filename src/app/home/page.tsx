@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -13,6 +15,10 @@ import {
   AlertCircle,
   BookOpen,
   ClipboardList,
+  X,
+  Wind,
+  Coins,
+  Shield,
 } from "lucide-react";
 import Image from "next/image";
 import BottomNav from "@/components/BottomNav";
@@ -21,6 +27,42 @@ import UpdateKondisiModal from "@/components/UpdateKondisiModal";
 import RelapseResetFlow from "@/components/RelapseResetFlow";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import {
+  awardPetXp,
+  claimStreakBonus,
+  DEFAULT_PET_STATE,
+  getPetProgress,
+  getPetSpecies,
+  hasChosenStarterPet,
+  loadPetState,
+  subscribePetState,
+  type PetStage,
+  type PetState,
+} from "@/lib/pets";
+import {
+  buildPersonalizedMissions,
+  DEFAULT_ONBOARDING,
+  loadOnboardingData,
+  loadUserRecoveryProfile,
+  METHOD_LABELS,
+  REASON_LABELS,
+  type OnboardingData,
+} from "@/lib/onboarding";
+
+const LumifMascot3D = dynamic(() => import("@/components/LumifMascot3D"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[210px] w-full items-center justify-center rounded-2xl bg-primary-light/60">
+      <Image
+        src="/assets/bear-avatar.png"
+        alt="Memuat maskot beruang Lumif"
+        width={120}
+        height={120}
+        className="object-contain"
+      />
+    </div>
+  ),
+});
 
 type Mission = {
   id: string;
@@ -28,12 +70,19 @@ type Mission = {
   completed: boolean;
 };
 
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 11) return "Selamat pagi";
+  if (hour < 15) return "Selamat siang";
+  if (hour < 19) return "Selamat sore";
+  return "Selamat malam";
+}
+
 function getTodayLocalDate() {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
@@ -44,88 +93,199 @@ export default function DashboardScreen() {
   const [isUpdateKondisiOpen, setIsUpdateKondisiOpen] = useState(false);
   const [isEmergencyFlowOpen, setIsEmergencyFlowOpen] = useState(false);
   const [isRelapseResetOpen, setIsRelapseResetOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifRead, setNotifRead] = useState(false);
 
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoadingMissions, setIsLoadingMissions] = useState(true);
   const [missionError, setMissionError] = useState("");
-  const [userName, setUserName] = useState("John");
+  const [isOfflineDemo, setIsOfflineDemo] = useState(false);
+  const [userName, setUserName] = useState("Sobat Lumif");
+  const [cleanDays, setCleanDays] = useState<number | null>(null);
+  const [urgeCount, setUrgeCount] = useState<number | null>(null);
+  const [hoursCount, setHoursCount] = useState<number | null>(null);
+  const [energyScore, setEnergyScore] = useState<number | null>(null);
+  const [petState, setPetState] = useState<PetState>(DEFAULT_PET_STATE);
+  const [previewStage, setPreviewStage] = useState<PetStage | null>(null);
+  const [recoveryPlan, setRecoveryPlan] = useState<OnboardingData | null>(null);
+
+  useEffect(() => {
+    const raf = window.requestAnimationFrame(() => {
+      setPetState(loadPetState());
+    });
+    const unsub = subscribePetState(() => {
+      setPetState(loadPetState());
+    });
+    return () => {
+      window.cancelAnimationFrame(raf);
+      unsub();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isNotifOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsNotifOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isNotifOpen]);
 
   useEffect(() => {
     const loadDashboardData = async () => {
       setIsLoadingMissions(true);
       setMissionError("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const loadDemoFallback = (nameFallback = "Sobat Lumif") => {
+        const localPlan = loadOnboardingData() ?? DEFAULT_ONBOARDING;
+        const personalizedTexts = buildPersonalizedMissions(localPlan);
+        setRecoveryPlan(localPlan);
+        setIsOfflineDemo(true);
+        setUserName(nameFallback);
+        setCleanDays(1);
+        setUrgeCount(null);
+        setHoursCount(null);
+        setEnergyScore(null);
+        setMissions(
+          personalizedTexts.map((text, idx) => ({
+            id: `demo-${idx + 1}`,
+            text,
+            completed: false,
+          }))
+        );
+        setIsLoadingMissions(false);
+      };
 
-      if (userError || !user) {
-        router.replace("/auth/login");
-        return;
-      }
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      const emailName = user.email?.split("@")[0] ?? "John";
-      setUserName(emailName);
+        if (userError || !user) {
+          const demoUser =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem("lumif_demo_user")
+              : null;
+          if (!demoUser) {
+            router.replace("/auth/login");
+            return;
+          }
+          if (!hasChosenStarterPet()) {
+            router.replace("/choose-pet");
+            return;
+          }
+          const parsed = JSON.parse(demoUser);
+          loadDemoFallback(parsed.name || "Sobat Lumif");
+          return;
+        }
 
-      const today = getTodayLocalDate();
+        if (!hasChosenStarterPet()) {
+          router.replace("/choose-pet");
+          return;
+        }
 
-      const { data: existingMissions, error: missionErrorResponse } =
-        await supabase
-          .from("daily_missions")
-          .select("id, text, completed")
+        setIsOfflineDemo(false);
+        const recoveryProfile = await loadUserRecoveryProfile(supabase);
+        setRecoveryPlan(recoveryProfile);
+        const emailName =
+          (user.user_metadata?.display_name as string | undefined) ||
+          user.email?.split("@")[0] ||
+          "Sobat Lumif";
+        setUserName(emailName);
+
+        const { data: latestRelapse } = await supabase
+          .from("relapse_logs")
+          .select("created_at")
           .eq("user_id", user.id)
-          .eq("mission_date", today)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (missionErrorResponse) {
-        console.error("Gagal mengambil daily_missions:", missionErrorResponse);
-        setMissionError("Gagal memuat misi harian.");
+        if (latestRelapse?.created_at) {
+          const diffMs = Date.now() - new Date(latestRelapse.created_at).getTime();
+          setCleanDays(Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24))));
+          setHoursCount(Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+        } else if (user.created_at) {
+          const diffMs = Date.now() - new Date(user.created_at).getTime();
+          setCleanDays(Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24))));
+          setHoursCount(Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+        }
+
+        const { data: checkinRows } = await supabase
+          .from("checkins")
+          .select("id, urge_score, energy_score")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (checkinRows && checkinRows.length > 0) {
+          setUrgeCount(checkinRows.length);
+          const latestEnergy = checkinRows[0].energy_score;
+          if (typeof latestEnergy === "number") {
+            setEnergyScore(latestEnergy);
+          }
+        } else {
+          setUrgeCount(0);
+        }
+
+        const today = getTodayLocalDate();
+
+        const { data: existingMissions, error: missionErrorResponse } =
+          await supabase
+            .from("daily_missions")
+            .select("id, text, completed")
+            .eq("user_id", user.id)
+            .eq("mission_date", today)
+            .order("created_at", { ascending: true });
+
+        if (missionErrorResponse) {
+          setMissionError("Gagal memuat misi harian.");
+          setIsLoadingMissions(false);
+          return;
+        }
+
+        if (existingMissions && existingMissions.length > 0) {
+          setMissions(existingMissions);
+          setIsLoadingMissions(false);
+          return;
+        }
+
+        const defaultMissions = buildPersonalizedMissions(recoveryProfile).map(
+          (text) => ({
+            user_id: user.id,
+            mission_date: today,
+            text,
+            completed: false,
+          })
+        );
+
+        const { data: insertedMissions, error: insertError } = await supabase
+          .from("daily_missions")
+          .insert(defaultMissions)
+          .select("id, text, completed");
+
+        if (insertError) {
+          setMissionError("Gagal membuat misi harian.");
+          setIsLoadingMissions(false);
+          return;
+        }
+
+        setMissions(insertedMissions ?? []);
         setIsLoadingMissions(false);
-        return;
+      } catch {
+        const demoUser =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem("lumif_demo_user")
+            : null;
+        let nameFallback = "Sobat Lumif";
+        if (demoUser) {
+          try {
+            nameFallback = JSON.parse(demoUser).name || nameFallback;
+          } catch {}
+        }
+        loadDemoFallback(nameFallback);
       }
-
-      if (existingMissions && existingMissions.length > 0) {
-        setMissions(existingMissions);
-        setIsLoadingMissions(false);
-        return;
-      }
-
-      const defaultMissions = [
-        {
-          user_id: user.id,
-          mission_date: today,
-          text: "Minum air 2 gelas",
-          completed: false,
-        },
-        {
-          user_id: user.id,
-          mission_date: today,
-          text: "Latihan pernafasan",
-          completed: false,
-        },
-        {
-          user_id: user.id,
-          mission_date: today,
-          text: "Evaluasi harian",
-          completed: false,
-        },
-      ];
-
-      const { data: insertedMissions, error: insertError } = await supabase
-        .from("daily_missions")
-        .insert(defaultMissions)
-        .select("id, text, completed");
-
-      if (insertError) {
-        console.error("Gagal membuat daily_missions:", insertError);
-        setMissionError("Gagal membuat misi harian.");
-        setIsLoadingMissions(false);
-        return;
-      }
-
-      setMissions(insertedMissions ?? []);
-      setIsLoadingMissions(false);
     };
 
     loadDashboardData();
@@ -143,311 +303,592 @@ export default function DashboardScreen() {
       )
     );
 
-    const { error } = await supabase
-      .from("daily_missions")
-      .update({ completed: nextCompleted })
-      .eq("id", id);
+    awardPetXp(nextCompleted ? 25 : -25);
 
-    if (error) {
-      console.error("Gagal update mission:", error);
+    if (id.startsWith("demo-")) return;
 
-      setMissions((prev) =>
-        prev.map((mission) =>
-          mission.id === id
-            ? { ...mission, completed: targetMission.completed }
-            : mission
-        )
-      );
+    try {
+      const { error } = await supabase
+        .from("daily_missions")
+        .update({ completed: nextCompleted })
+        .eq("id", id);
 
-      setMissionError("Gagal menyimpan perubahan misi.");
+      if (error) {
+        setMissions((prev) =>
+          prev.map((mission) =>
+            mission.id === id
+              ? { ...mission, completed: targetMission.completed }
+              : mission
+          )
+        );
+        setMissionError("Gagal menyimpan perubahan misi.");
+      }
+    } catch {
+      // Offline mode keeps local optimistic state
     }
   };
 
+  const pendingMissionsCount = missions.filter((m) => !m.completed).length;
+  const petSpecies = getPetSpecies(petState.speciesId);
+  const petProgress = getPetProgress(petState.xp, petSpecies);
+  const activeStage: PetStage =
+    petSpecies.hasEvolution && previewStage ? previewStage : petProgress.stage;
+  const activeStageAsset = petSpecies.stages[activeStage];
+  const todayDate = getTodayLocalDate();
+  const canClaimStreakBonus =
+    cleanDays !== null &&
+    cleanDays >= 1 &&
+    petState.lastStreakRewardDate !== todayDate;
+  const dailyStreakCoinReward =
+    cleanDays !== null ? Math.min(60, 20 + Math.min(cleanDays, 7) * 5) : 0;
+
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#FAFAFA] font-lexend">
-      <div className="flex-1 overflow-y-auto pb-[100px]">
-        <div className="relative rounded-b-[40px] bg-[#2D936C] px-[24px] pb-[60px] pt-[16px]">
-          <div className="mb-[32px] flex items-center justify-between">
-            <div className="flex items-center gap-[12px]">
-              <div className="h-[40px] w-[40px] overflow-hidden rounded-full border-2 border-white/30 bg-white/20">
-                <Image
-                  src="/assets/bear 2.png"
-                  alt="Avatar"
-                  width={40}
-                  height={40}
-                  className="object-cover"
-                />
-              </div>
+    <div className="lumif-with-nav relative flex min-h-dvh flex-col bg-surface-soft font-sans text-foreground">
+      <main className="flex-1 pb-[calc(104px+env(safe-area-inset-bottom))] md:pb-10">
+        <div className="mx-auto w-full max-w-6xl md:px-6 md:pt-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* Main Column */}
+            <div className="flex flex-col gap-6 lg:col-span-8">
+              {/* Hero Card */}
+              <section className="relative rounded-b-[28px] bg-[#257B5A] px-6 pb-8 pt-5 text-white md:rounded-[28px] md:px-8 md:py-7">
+                <div className="mb-7 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white/30 bg-white/20">
+                      <Image
+                        src="/assets/bear-avatar.png"
+                        alt="Avatar Beruang Lumif"
+                        width={44}
+                        height={44}
+                        className="object-cover"
+                      />
+                    </div>
 
-              <div className="text-white">
-                <p className="font-poppins text-[12px] leading-[1.2] opacity-80">
-                  Selamat pagi,
-                </p>
-                <p className="font-poppins text-[16px] font-bold leading-[1.2]">
-                  {userName}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="relative rounded-full bg-white/10 p-2 transition-colors hover:bg-white/20"
-              onClick={() => { }}
-            >
-              <Bell className="h-[24px] w-[24px] text-white" />
-              <div className="absolute right-[10px] top-[10px] h-[8px] w-[8px] rounded-full border border-[#2D936C] bg-red-500" />
-            </button>
-          </div>
-
-          <div className="mb-[32px] flex animate-fadeInUp flex-col items-center text-center">
-            <h1 className="mb-[8px] font-poppins text-[36px] font-bold tracking-[-0.64px] text-white">
-              3 Hari Bersih
-            </h1>
-
-            <p className="max-w-[280px] text-[13px] leading-[1.5] text-white/80">
-              4 hari lagi menuju pemulihan fokus dan energi yang lebih baik.
-            </p>
-          </div>
-
-          <div className="flex justify-between gap-[12px]">
-            <div className="flex-1 rounded-[20px] border border-white/10 bg-[#257B5A] p-[12px] text-center">
-              <div className="mb-[4px] font-poppins text-[20px] font-bold leading-none text-white">
-                9
-              </div>
-              <div className="text-[11px] text-white/70">Urge lewat</div>
-            </div>
-
-            <div className="flex-1 rounded-[20px] border border-white/10 bg-[#257B5A] p-[12px] text-center">
-              <div className="mb-[4px] font-poppins text-[20px] font-bold leading-none text-white">
-                5
-              </div>
-              <div className="text-[11px] text-white/70">Jam</div>
-            </div>
-
-            <div className="flex-1 rounded-[20px] border border-white/10 bg-[#257B5A] p-[12px] text-center">
-              <div className="mb-[4px] font-poppins text-[20px] font-bold leading-none text-white">
-                6/10
-              </div>
-              <div className="text-[11px] text-white/70">Energi Pulih</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative z-10 -mt-[35px] mb-[24px] px-[24px]">
-          <div className="flex items-center justify-between rounded-[24px] border border-[#F1F5F9] bg-white p-[20px] shadow-[0px_8px_30px_rgba(0,0,0,0.08)]">
-            <div>
-              <h3 className="font-poppins text-[15px] font-bold text-[#0F172A]">
-                Evaluasi Harian
-              </h3>
-              <p className="text-[12px] text-[#64748B]">
-                Bagaimana perasaan Anda hari ini?
-              </p>
-            </div>
-
-            <Button
-              onClick={() => setIsUpdateKondisiOpen(true)}
-              className="flex h-auto gap-2 rounded-[14px] bg-[#2D936C] px-[16px] py-[8px] font-bold hover:bg-[#257B5A]"
-            >
-              Evaluasi
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-[24px] px-[24px]">
-          <button
-            type="button"
-            onClick={() => setIsEmergencyFlowOpen(true)}
-            className="flex w-full items-center gap-[16px] rounded-[24px] bg-[#D82C1C] p-[20px] text-left shadow-lg shadow-red-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <div className="rounded-2xl bg-white/20 p-3">
-              <AlertCircle className="h-8 w-8 text-white" />
-            </div>
-
-            <div>
-              <h3 className="font-poppins text-[18px] font-bold uppercase leading-tight tracking-wide text-white">
-                BUTUH BANTUAN
-              </h3>
-              <p className="text-[13px] text-white/80">
-                Butuh bantuan sekarang? Klik di sini
-              </p>
-            </div>
-          </button>
-
-          <section>
-            <h2 className="mb-[12px] font-poppins text-[14px] font-bold text-[#0F172A]">
-              Misi Kecil Hari Ini
-            </h2>
-
-            <div className="flex flex-col gap-[12px]">
-              {isLoadingMissions && (
-                <div className="rounded-[20px] border border-[#F1F5F9] bg-white p-[16px] text-[13px] text-[#64748B] shadow-sm">
-                  Memuat misi hari ini...
-                </div>
-              )}
-
-              {!isLoadingMissions && missionError && (
-                <div className="rounded-[20px] border border-red-100 bg-red-50 p-[16px] text-[13px] text-red-600 shadow-sm">
-                  {missionError}
-                </div>
-              )}
-
-              {!isLoadingMissions &&
-                !missionError &&
-                missions.map((mission) => (
-                  <button
-                    key={mission.id}
-                    type="button"
-                    onClick={() => toggleMission(mission.id)}
-                    className="group flex items-center justify-between rounded-[20px] border border-[#F1F5F9] bg-white p-[16px] text-left shadow-sm transition-all hover:border-[#2D936C]/30"
-                  >
-                    <div className="flex items-center gap-[12px]">
-                      <div
-                        className={`rounded-lg p-2 transition-colors ${mission.completed
-                            ? "bg-green-50 text-green-600"
-                            : "bg-gray-50 text-gray-400 group-hover:bg-green-50"
-                          }`}
-                      >
-                        <Check className="h-5 w-5" />
+                    <div>
+                      <p className="font-heading text-xs text-white/90">
+                        {getTimeGreeting()},
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-heading text-base font-bold leading-tight">
+                          {userName}
+                        </p>
+                        {isOfflineDemo && (
+                          <span className="rounded-md bg-black/25 px-2 py-0.5 text-[11px] font-semibold text-white">
+                            Mode Demo Offline
+                          </span>
+                        )}
                       </div>
-
-                      <span
-                        className={`text-[14px] font-medium transition-all ${mission.completed
-                            ? "text-[#94A3B8] line-through"
-                            : "text-[#334155]"
-                          }`}
-                      >
-                        {mission.text}
-                      </span>
                     </div>
-
-                    <div
-                      className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${mission.completed
-                          ? "border-[#2D936C] bg-[#2D936C]"
-                          : "border-[#CBD5E1] bg-white group-hover:border-[#2D936C]"
-                        }`}
-                    >
-                      {mission.completed && (
-                        <Check className="h-4 w-4 text-white" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-            </div>
-          </section>
-
-          <button
-            type="button"
-            onClick={() => setIsRelapseResetOpen(true)}
-            className="flex w-full flex-col gap-1 rounded-[20px] border border-[#F1F5F9] bg-white p-[16px] text-left shadow-sm transition-colors hover:bg-gray-50"
-          >
-            <h3 className="font-poppins text-[15px] font-bold text-[#2D936C]">
-              Aku butuh reset
-            </h3>
-            <p className="text-[12px] text-[#64748B]">
-              Lapor relaps dan mulai kembali
-            </p>
-          </button>
-
-          <section>
-            <h2 className="mb-[16px] font-poppins text-[14px] font-bold text-[#0F172A]">
-              Menu Lainnya
-            </h2>
-
-            <div className="grid grid-cols-4 gap-[16px]">
-              {[
-                {
-                  name: "Komunitas",
-                  icon: MessageCircle,
-                  color: "bg-emerald-100 text-emerald-600",
-                  href: "/community",
-                },
-                {
-                  name: "Permainan",
-                  icon: Puzzle,
-                  color: "bg-amber-100 text-amber-600",
-                  href: "/home",
-                },
-                {
-                  name: "Pernapasan",
-                  icon: Heart,
-                  color: "bg-rose-100 text-rose-600",
-                  href: "/exercises/breathing",
-                },
-                {
-                  name: "Lainnya",
-                  icon: Grid,
-                  color: "bg-indigo-100 text-indigo-600",
-                  href: "/more",
-                },
-              ].map((menu, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => router.push(menu.href)}
-                  className="flex flex-col items-center gap-[8px]"
-                >
-                  <div
-                    className={`flex h-[60px] w-[60px] items-center justify-center rounded-[18px] shadow-sm transition-transform hover:scale-110 active:scale-95 ${menu.color}`}
-                  >
-                    <menu.icon className="h-7 w-7" />
                   </div>
 
-                  <span className="text-[11px] font-medium text-[#475569]">
-                    {menu.name}
-                  </span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsNotifOpen((prev) => !prev);
+                        setNotifRead(true);
+                      }}
+                      aria-expanded={isNotifOpen}
+                      aria-label="Notifikasi pengingat"
+                      className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25"
+                    >
+                      <Bell className="h-5 w-5 text-white" aria-hidden="true" />
+                      {!notifRead && pendingMissionsCount > 0 && (
+                        <span
+                          className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full border border-[#257B5A] bg-[#EDBF45]"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+
+                    {isNotifOpen && (
+                      <div
+                        role="dialog"
+                        aria-label="Daftar pengingat hari ini"
+                        className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-xl"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <h2 className="font-heading text-sm font-bold">
+                            Pengingat Hari Ini
+                          </h2>
+                          <button
+                            type="button"
+                            onClick={() => setIsNotifOpen(false)}
+                            aria-label="Tutup pengingat"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <X className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        </div>
+                        {pendingMissionsCount > 0 ? (
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            Masih ada {pendingMissionsCount} misi kecil yang belum selesai hari ini. Lakukan pelan-pelan sesuai ritmemu.
+                          </p>
+                        ) : (
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            Semua misi hari ini sudah selesai. Kamu bisa istirahat atau menulis evaluasi singkat.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center text-center md:items-start md:text-left">
+                  <h1 className="mb-2 font-heading text-[clamp(1.85rem,3vw,2.5rem)] font-bold tracking-tight text-white">
+                    {cleanDays !== null ? (
+                      <>
+                        <span className="text-[#FF9E3D]">{cleanDays} Hari</span> Bersih
+                      </>
+                    ) : (
+                      "Memuat Progres"
+                    )}
+                  </h1>
+
+                  <p className="max-w-md text-sm leading-relaxed text-white/90">
+                    {cleanDays !== null
+                      ? `${Math.max(1, (recoveryPlan?.goalDays ?? 7) - (cleanDays % (recoveryPlan?.goalDays ?? 7)))} hari lagi menuju target ${recoveryPlan?.goalDays ?? 7} hari berikutnya.`
+                      : "Menghubungkan data pemulihanmu..."}
+                  </p>
+
+                  {recoveryPlan && (
+                    <div className="mt-3 flex flex-wrap justify-center gap-2 text-[11px] font-semibold text-white/90 md:justify-start">
+                      <span className="rounded-lg bg-white/15 px-2.5 py-1">
+                        Jalur: {METHOD_LABELS[recoveryPlan.method]}
+                      </span>
+                      <span className="rounded-lg bg-white/15 px-2.5 py-1">
+                        Alasan: {REASON_LABELS[recoveryPlan.reason]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {(urgeCount !== null && urgeCount > 0) || energyScore !== null ? (
+                  <div className="mt-7 grid grid-cols-3 gap-3">
+                    <div className="rounded-2xl border border-white/15 bg-[#1D6348] p-3.5 text-center">
+                      <div className="mb-1 font-heading text-xl font-bold leading-none text-white">
+                        {urgeCount ?? 0}
+                      </div>
+                      <div className="text-xs text-white/90">
+                        Check-in Tercatat
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/15 bg-[#1D6348] p-3.5 text-center">
+                      <div className="mb-1 font-heading text-xl font-bold leading-none text-white">
+                        {hoursCount !== null ? `${hoursCount} Jam` : "-"}
+                      </div>
+                      <div className="text-xs text-white/90">Sisa Jam Bersih</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/15 bg-[#1D6348] p-3.5 text-center">
+                      <div className="mb-1 font-heading text-xl font-bold leading-none text-white">
+                        {energyScore !== null ? `${energyScore}/10` : "-"}
+                      </div>
+                      <div className="text-xs text-white/90">Skor Energi</div>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+
+              {/* Daily Evaluation */}
+              <div className="px-4 md:px-0">
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-border bg-card p-5 shadow-xs">
+                  <div>
+                    <h2 className="font-heading text-base font-bold text-card-foreground">
+                      Evaluasi Harian
+                    </h2>
+                    <p className="text-xs text-muted-foreground md:text-sm">
+                      Bagaimana perasaanmu hari ini?
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => setIsUpdateKondisiOpen(true)}
+                    className="flex min-h-[44px] gap-2 rounded-xl bg-primary px-5 py-2.5 font-bold text-primary-foreground hover:bg-primary-dark"
+                  >
+                    Evaluasi
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Mobile Emergency CTA (moved to right rail on desktop) */}
+              <div className="px-4 md:px-0 lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsEmergencyFlowOpen(true)}
+                  className="flex min-h-[72px] w-full items-center gap-4 rounded-3xl bg-[#D82C1C] p-5 text-left text-white shadow-sm transition-colors hover:bg-[#B92214] active:scale-[0.99]"
+                >
+                  <div className="rounded-2xl bg-white/20 p-3">
+                    <AlertCircle className="h-7 w-7 text-white" aria-hidden="true" />
+                  </div>
+
+                  <div>
+                    <h2 className="font-heading text-base font-bold uppercase tracking-wide">
+                      BUTUH BANTUAN
+                    </h2>
+                    <p className="text-xs text-white/90">
+                      Dorongan terasa kuat? Klik untuk jeda darurat sekarang
+                    </p>
+                  </div>
                 </button>
-              ))}
+              </div>
+
+              {/* Daily Missions */}
+              <section className="px-4 md:px-0">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="font-heading text-sm font-bold text-foreground md:text-base">
+                    Misi Kecil Hari Ini
+                  </h2>
+                  {missions.length > 0 && (
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {missions.filter((m) => m.completed).length}/{missions.length} selesai
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {isLoadingMissions && (
+                    <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                      Memuat misi hari ini...
+                    </div>
+                  )}
+
+                  {!isLoadingMissions && missionError && (
+                    <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                      {missionError}
+                    </div>
+                  )}
+
+                  {!isLoadingMissions && !missionError && missions.length === 0 && (
+                    <div className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+                      Belum ada misi untuk hari ini. Coba lakukan evaluasi harian untuk memulai.
+                    </div>
+                  )}
+
+                  {!isLoadingMissions &&
+                    !missionError &&
+                    missions.map((mission) => (
+                      <button
+                        key={mission.id}
+                        type="button"
+                        onClick={() => toggleMission(mission.id)}
+                        aria-pressed={mission.completed}
+                        className="group flex min-h-[56px] items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:border-primary/40"
+                      >
+                        <div className="flex min-w-0 items-center gap-3.5">
+                          <span
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                              mission.completed
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background group-hover:border-primary"
+                            }`}
+                          >
+                            {mission.completed && (
+                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                          </span>
+
+                          <span
+                            className={`truncate text-sm font-medium ${
+                              mission.completed
+                                ? "text-muted-foreground line-through"
+                                : "text-card-foreground"
+                            }`}
+                          >
+                            {mission.text}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`shrink-0 text-[11px] font-bold ${
+                            mission.completed
+                              ? "text-primary"
+                              : "text-brand-orange-ink"
+                          }`}
+                        >
+                          {mission.completed ? "Selesai" : "+25 XP"}
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              </section>
+
+              {/* Quick Menu Grid (Mobile & Tablet only, already in Sidebar on Desktop) */}
+              <section className="px-4 md:px-0 lg:hidden">
+                <h2 className="mb-3 font-heading text-sm font-bold text-foreground md:text-base">
+                  Akses Cepat
+                </h2>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    {
+                      name: "Komunitas",
+                      icon: MessageCircle,
+                      color: "bg-[#EAF7F1] text-primary dark:bg-emerald-950/50",
+                      href: "/community",
+                    },
+                    {
+                      name: "Permainan",
+                      icon: Puzzle,
+                      color: "bg-[#FFF3E5] text-brand-orange-ink dark:bg-orange-950/40",
+                      href: "/games",
+                    },
+                    {
+                      name: "Pernapasan",
+                      icon: Heart,
+                      color: "bg-[#FCF6E3] text-[#8A6700] dark:bg-amber-950/40 dark:text-[#EDBF45]",
+                      href: "/exercises/breathing",
+                    },
+                    {
+                      name: "Lainnya",
+                      icon: Grid,
+                      color: "bg-muted text-foreground",
+                      href: "/more",
+                    },
+                  ].map((menu) => (
+                    <Link
+                      key={menu.name}
+                      href={menu.href}
+                      className="flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-muted/40"
+                    >
+                      <span
+                        className={`flex h-10 w-10 items-center justify-center rounded-xl ${menu.color}`}
+                      >
+                        <menu.icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span className="text-xs font-semibold text-card-foreground">
+                        {menu.name}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+
+              {/* Focused Recovery Actions */}
+              <section className="px-4 pb-2 md:px-0">
+                <h2 className="mb-3 font-heading text-sm font-bold text-foreground md:text-base">
+                  Lanjutkan Pemulihan
+                </h2>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Link
+                    href="/modules"
+                    className="flex items-center gap-3.5 rounded-2xl border border-primary/20 bg-primary-light p-4 text-left transition-colors hover:border-primary/50"
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-card text-primary">
+                      <BookOpen className="h-5 w-5" aria-hidden="true" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <h3 className="font-heading text-sm font-bold text-foreground">
+                        Modul CBT & ACT
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Edukasi & latihan pola pikir
+                      </p>
+                    </div>
+                  </Link>
+
+                  <Link
+                    href="/routines"
+                    className="flex items-center gap-3.5 rounded-2xl border border-[#FF8200]/25 bg-[#FFF6EB] p-4 text-left transition-colors hover:border-[#FF8200]/50 dark:bg-orange-950/30"
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-card text-brand-orange-ink">
+                      <ClipboardList className="h-5 w-5" aria-hidden="true" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <h3 className="font-heading text-sm font-bold text-foreground">
+                        Rutinitas Harian
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Checklist kebiasaan positif
+                      </p>
+                    </div>
+                  </Link>
+                </div>
+              </section>
             </div>
-          </section>
 
-          <section className="mb-[12px]">
-            <h2 className="mb-[16px] font-poppins text-[14px] font-bold text-[#0F172A]">
-              Menumbuhkan Kepercayaan Diri
-            </h2>
+            {/* Right Companion & Urgent Stack */}
+            <aside className="flex flex-col gap-5 px-4 md:px-0 lg:col-span-4">
+              {/* 3D Pet Companion Card with Level & Evolution */}
+              <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="truncate font-heading text-base font-bold text-card-foreground">
+                        {petState.nickname}
+                      </h2>
+                      <span className="rounded-md bg-surface-soft px-2 py-0.5 font-heading text-[11px] font-bold text-primary">
+                        Lv. {petProgress.level} ·{" "}
+                        {petSpecies.hasEvolution
+                          ? petProgress.stageLabel
+                          : petSpecies.categoryLabel}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {petSpecies.name}
+                      {previewStage && petSpecies.hasEvolution
+                        ? ` (Pratinjau ${petSpecies.stages[previewStage].stageLabel})`
+                        : ""}
+                    </p>
+                  </div>
 
-            <div className="grid grid-cols-2 gap-[16px]">
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-[#0F172A] dark:bg-amber-950/60 dark:text-amber-300">
+                      <Coins className="h-3.5 w-3.5" aria-hidden="true" />
+                      {petState.coins}
+                    </span>
+                    <Link
+                      href="/lair"
+                      className="inline-flex min-h-[44px] items-center rounded-xl border border-border px-3 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      Lair Pet
+                    </Link>
+                  </div>
+                </div>
+
+                <LumifMascot3D
+                  modelUrl={activeStageAsset.modelUrl}
+                  stage={activeStage}
+                  isEggStage={activeStage === "egg" && petSpecies.hasEvolution}
+                  mode="companion"
+                />
+
+                {canClaimStreakBonus && cleanDays !== null && (
+                  <button
+                    type="button"
+                    onClick={() => claimStreakBonus(todayDate, cleanDays)}
+                    className="mt-3 flex min-h-[40px] w-full items-center justify-center gap-2 rounded-xl bg-[#EDBF45] px-3 py-2 font-heading text-xs font-bold text-[#0F172A] shadow-xs transition hover:brightness-95"
+                  >
+                    <Coins className="h-4 w-4" aria-hidden="true" />
+                    <span>
+                      Klaim Bonus Streak {cleanDays} Hari (+{dailyStreakCoinReward} Koin)
+                    </span>
+                  </button>
+                )}
+
+                {/* XP & Evolution Progress */}
+                <div className="mt-3 rounded-2xl bg-surface-soft p-3">
+                  <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold">
+                    <span className="text-brand-orange-ink">
+                      {petState.xp} XP · {petState.coins} Koin
+                    </span>
+                    <span className="text-muted-foreground">
+                      {petProgress.currentLevelXp}/{petProgress.nextLevelXp} XP
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${petProgress.progressPercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    {petProgress.nextEvolutionText}
+                  </p>
+                </div>
+
+                {petSpecies.hasEvolution && (
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewStage(null)}
+                      aria-pressed={previewStage === null}
+                      className={`min-h-[32px] rounded-lg px-2.5 text-[11px] font-semibold transition-colors ${
+                        previewStage === null
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Aktif
+                    </button>
+                    {(["egg", "baby", "adult"] as PetStage[]).map((stageKey) => (
+                      <button
+                        key={stageKey}
+                        type="button"
+                        onClick={() => setPreviewStage(stageKey)}
+                        aria-pressed={previewStage === stageKey}
+                        className={`min-h-[32px] rounded-lg px-2.5 text-[11px] font-semibold transition-colors ${
+                          previewStage === stageKey
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Pratinjau {petSpecies.stages[stageKey].stageLabel}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <Link
+                  href="/exercises/breathing"
+                  className="mt-4 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-heading text-sm font-bold text-primary-foreground transition hover:bg-primary-dark"
+                >
+                  <Wind className="h-4 w-4" aria-hidden="true" />
+                  <span>Latihan Napas Bersama</span>
+                </Link>
+              </section>
+
+              {/* Desktop Emergency Card */}
               <button
                 type="button"
-                onClick={() => router.push("/modules")}
-                className="flex flex-col gap-[12px] rounded-[24px] border border-[#C6E1D7] bg-[#E7F3EF] p-[20px] text-left transition-all hover:scale-[1.02]"
+                onClick={() => setIsEmergencyFlowOpen(true)}
+                className="hidden w-full items-center gap-4 rounded-3xl bg-[#D82C1C] p-5 text-left text-white shadow-sm transition-colors hover:bg-[#B92214] active:scale-[0.99] lg:flex"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
-                  <BookOpen className="h-6 w-6 text-[#2D936C]" />
+                <div className="rounded-2xl bg-white/20 p-3">
+                  <AlertCircle className="h-7 w-7 text-white" aria-hidden="true" />
                 </div>
 
                 <div>
-                  <h3 className="font-poppins text-[16px] font-bold text-[#1E293B]">
-                    Modul
-                  </h3>
-                  <p className="text-[12px] text-[#64748B]">
-                    Edukasi & Belajar
+                  <h2 className="font-heading text-base font-bold uppercase tracking-wide">
+                    BUTUH BANTUAN
+                  </h2>
+                  <p className="text-xs text-white/90">
+                    Dorongan terasa kuat? Klik untuk jeda darurat
                   </p>
                 </div>
               </button>
 
+              {/* Relapse Reset Card */}
               <button
                 type="button"
-                onClick={() => router.push("/routines")}
-                className="flex flex-col gap-[12px] rounded-[24px] border border-[#FBEAC3] bg-[#FFF8E7] p-[20px] text-left transition-all hover:scale-[1.02]"
+                onClick={() => setIsRelapseResetOpen(true)}
+                className="flex min-h-[68px] w-full flex-col gap-1 rounded-2xl border border-border bg-card p-4 text-left shadow-xs transition-colors hover:bg-muted/60"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
-                  <ClipboardList className="h-6 w-6 text-[#EAB308]" />
-                </div>
-
-                <div>
-                  <h3 className="font-poppins text-[16px] font-bold text-[#1E293B]">
-                    Rutinitas
-                  </h3>
-                  <p className="text-[12px] text-[#64748B]">
-                    Checklist Harian
-                  </p>
-                </div>
+                <h3 className="font-heading text-sm font-bold text-primary">
+                  Aku butuh reset
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Lapor relaps dan mulai kembali tanpa menghakimi diri
+                </p>
               </button>
-            </div>
-          </section>
+
+              <Link
+                href="/focus-guard"
+                className="flex min-h-[64px] w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-light text-primary">
+                    <Shield className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="font-heading text-sm font-bold text-card-foreground">
+                      Lumif Focus Guard
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Atur proteksi situs & jeda pencarian
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </Link>
+            </aside>
+          </div>
         </div>
-      </div>
+      </main>
 
       <UpdateKondisiModal
         isOpen={isUpdateKondisiOpen}

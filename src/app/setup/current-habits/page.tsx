@@ -1,52 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import ProgressDots from "@/components/ProgressDots";
-import { HiArrowLongRight, HiChevronUpDown } from "react-icons/hi2";
+import { ArrowRight, ChevronUp, ChevronDown } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { saveOnboardingData, syncOnboardingToSupabase } from "@/lib/onboarding";
 
 export default function CurrentHabitsScreen() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [frequency, setFrequency] = useState<number>(20);
 
+  const handleNext = async () => {
+    saveOnboardingData({ frequency });
+    await syncOnboardingToSupabase(supabase, { frequency });
+    router.push("/setup/method");
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white relative font-sans pt-[20px]">
+    <div className="relative flex h-full flex-col bg-background font-sans pt-5">
       <TopNav
         onBack={() => router.back()}
-        onSkip={() => {}}
+        onSkip={() => router.push("/setup/method")}
         skipText="Lewati"
       />
       
-      <div className="px-[24px] pt-[24px] flex-1 flex flex-col items-center justify-center">
-        <div className="w-full flex justify-center absolute top-[107px]">
-           <ProgressDots total={6} current={3} />
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pt-6">
+        <div className="absolute top-[107px] flex w-full justify-center">
+          <ProgressDots total={6} current={3} />
         </div>
 
-        <h1 className="text-[20px] font-bold text-black text-center tracking-[-0.4px] mb-[56px] w-full">
+        <h1 className="mb-14 w-full text-center font-poppins text-xl font-bold tracking-tight text-foreground">
           Seberapa sering kamu mengakses konten tersebut?
         </h1>
 
-        <div className="flex gap-[16px] items-center justify-center mb-auto w-full">
-           <div className="flex items-center gap-[4px]">
-             <div className="flex flex-col items-center justify-center text-black">
-                <HiChevronUpDown className="h-[45px] w-[45px] text-black cursor-pointer" />
-             </div>
-             <div className="text-[58px] font-bold text-black leading-none flex items-center justify-center h-[72px]">
-               {frequency}
-             </div>
-           </div>
-           <div className="text-[16px] text-black font-medium leading-[36px]">
-             Kali / Minggu
-           </div>
+        <div className="mb-auto flex w-full items-center justify-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col items-center justify-center gap-1 text-foreground">
+              <button
+                type="button"
+                onClick={() => setFrequency((prev) => Math.min(prev + 1, 100))}
+                className="rounded-lg p-1.5 transition hover:bg-muted active:scale-95"
+                aria-label="Tambah frekuensi"
+              >
+                <ChevronUp className="h-7 w-7 text-foreground" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setFrequency((prev) => Math.max(prev - 1, 1))}
+                className="rounded-lg p-1.5 transition hover:bg-muted active:scale-95"
+                aria-label="Kurangi frekuensi"
+              >
+                <ChevronDown className="h-7 w-7 text-foreground" />
+              </button>
+            </div>
+            <div className="flex h-[72px] items-center justify-center font-poppins text-6xl font-extrabold leading-none text-foreground">
+              {frequency}
+            </div>
+          </div>
+          <div className="font-poppins text-base font-medium leading-9 text-muted-foreground">
+            Kali / Minggu
+          </div>
         </div>
 
         {/* Next Button */}
-        <button className="bg-[#2d936c] hover:bg-[#257a5a] transition-colors w-full rounded-[10px] py-[14px] flex items-center justify-center gap-[12px] mb-[24px] absolute bottom-0 left-[24px] w-[calc(100%-48px)]">
-          <span className="text-[16px] font-bold text-white tracking-[-0.32px]">
+        <button
+          type="button"
+          onClick={handleNext}
+          className="absolute bottom-0 left-6 mb-6 flex h-13 w-[calc(100%-48px)] cursor-pointer items-center justify-center gap-3 rounded-2xl bg-primary shadow-md transition hover:bg-primary-dark active:scale-[0.98]"
+        >
+          <span className="font-poppins text-base font-bold text-white tracking-tight">
             Selanjutnya
           </span>
-          <HiArrowLongRight className="text-white h-[20px] w-[20px]" />
+          <ArrowRight className="h-5 w-5 text-white" />
         </button>
       </div>
     </div>

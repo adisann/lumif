@@ -9,17 +9,26 @@ import {
   BookOpen,
   CalendarDays,
   Check,
-  ChevronDown,
-  ChevronUp,
+  Focus,
   HeartHandshake,
   LineChart,
+  Minus,
+  Moon,
+  Plus,
   ShieldCheck,
-  Sparkles,
   Target,
+  Wind,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  saveOnboardingData,
+  type OnboardingMethod,
+  type OnboardingReason,
+  type OnboardingRoutine,
+  type OnboardingTrigger,
+} from "@/lib/onboarding";
 
 type IntroStep = {
   kind: "intro";
@@ -62,21 +71,13 @@ type SummaryStep = {
 
 type OnboardingStep = IntroStep | QuizStep | FrequencyStep | SummaryStep;
 
-const STEP_VISUALS: Partial<Record<QuizStep["id"] | FrequencyStep["id"], LucideIcon>> = {
-  frequency: LineChart,
-  reason: Sparkles,
-  trigger: ShieldCheck,
-  method: Target,
-  routine: HeartHandshake,
-};
-
 const STEPS: OnboardingStep[] = [
   {
     kind: "intro",
     title: "Mulai dari satu langkah yang jujur",
     description:
       "Lumif membantu kamu memetakan kebiasaan, memilih jalur pemulihan, dan menjaga progres tanpa rasa dihakimi.",
-    image: "/assets/Onboarding Person.png",
+    image: "/assets/onboarding-calm.png",
     accent: "bg-[#EAF7F1]",
   },
   {
@@ -84,7 +85,7 @@ const STEPS: OnboardingStep[] = [
     title: "Rencana yang ikut ritmemu",
     description:
       "Pilih berhenti total atau bertahap, lalu dapatkan rutinitas kecil yang bisa kamu jalankan setiap hari.",
-    image: "/assets/journeybro.png",
+    image: "/assets/onboarding-journey.png",
     accent: "bg-[#FFF5E6]",
   },
   {
@@ -97,7 +98,7 @@ const STEPS: OnboardingStep[] = [
       {
         label: "Fokus dan produktivitas",
         description: "Aku ingin energi mentalku kembali stabil.",
-        icon: Sparkles,
+        icon: Focus,
         value: "focus",
       },
       {
@@ -143,7 +144,7 @@ const STEPS: OnboardingStep[] = [
       {
         label: "Kebiasaan malam",
         description: "Paling sering terjadi sebelum tidur.",
-        icon: BookOpen,
+        icon: Moon,
         value: "night",
       },
     ],
@@ -179,7 +180,7 @@ const STEPS: OnboardingStep[] = [
       {
         label: "Latihan napas",
         description: "Cocok untuk meredakan dorongan mendadak.",
-        icon: Sparkles,
+        icon: Wind,
         value: "breathing",
       },
       {
@@ -238,10 +239,13 @@ export default function OnboardingScreen() {
       return;
     }
 
-    window.localStorage.setItem(
-      "lumif_onboarding",
-      JSON.stringify({ ...answers, frequency }),
-    );
+    saveOnboardingData({
+      reason: answers.reason as OnboardingReason,
+      trigger: answers.trigger as OnboardingTrigger,
+      method: answers.method as OnboardingMethod,
+      routine: answers.routine as OnboardingRoutine,
+      frequency,
+    });
     router.push("/auth/login");
   };
 
@@ -257,267 +261,264 @@ export default function OnboardingScreen() {
   const skip = () => router.push("/auth");
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-col overflow-y-auto bg-[#FAFAFA] font-lexend text-black">
-      <header className="z-20 flex h-[96px] shrink-0 items-center justify-between px-6 pt-6">
+    <main className="relative flex min-h-dvh w-full flex-col bg-surface-soft px-4 py-5 font-sans text-foreground sm:px-6 sm:py-8">
+      <header className="mx-auto flex w-full max-w-[540px] shrink-0 items-center justify-between pb-4">
         <button
           type="button"
           onClick={goBack}
-          className="flex size-12 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white shadow-sm transition active:scale-95"
+          className="flex size-11 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-xs transition hover:bg-muted active:scale-95"
           aria-label="Kembali"
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="size-5" aria-hidden="true" />
         </button>
 
         {!isSummary && (
           <button
             type="button"
             onClick={skip}
-            className="font-poppins text-sm font-bold text-[#667085] transition hover:text-[#2D936C]"
+            className="min-h-[44px] rounded-xl px-3 font-heading text-sm font-bold text-muted-foreground transition hover:bg-muted hover:text-primary"
           >
             Lewati
           </button>
         )}
       </header>
 
-      <section className="flex flex-1 flex-col px-6 pb-4">
-        {!isIntro && (
-          <div className="mx-auto mb-8 w-full max-w-[416px]">
-            <div className="mb-2 flex items-center justify-between font-poppins text-xs font-semibold text-[#667085]">
-              <span>Quiz awal</span>
-              <span>
-                {quizProgress}/{quizStepCount}
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[#E5E7EB]">
-              <div
-                className="h-full rounded-full bg-[#2D936C] transition-all duration-500"
-                style={{ width: `${(quizProgress / quizStepCount) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div
-          key={step}
-          className={cn(
-            "flex flex-1 flex-col animate-fadeInUp",
-            isIntro ? "justify-center" : "justify-start",
-          )}
-        >
-          {isIntro ? (
-            <div
-              className={cn(
-                "mx-auto mb-9 flex aspect-square w-full max-w-[252px] items-center justify-center overflow-hidden rounded-[28px]",
-                currentStep.accent,
-              )}
-            >
-              <div className="relative h-[82%] w-[82%]">
-                <Image
-                  src={currentStep.image}
-                  alt={currentStep.title}
-                  fill
-                  sizes="252px"
-                  priority={step < 2}
-                  className="object-contain"
+      <div className="mx-auto flex w-full max-w-[540px] flex-1 flex-col items-center justify-center pb-4">
+        <section className="w-full rounded-3xl border border-border bg-card p-6 shadow-xs sm:p-8">
+          {!isIntro && (
+            <div className="mb-6">
+              <div className="mb-2 flex items-center justify-between font-poppins text-xs font-semibold">
+                <span className="text-brand-orange-ink">Quiz awal</span>
+                <span className="text-muted-foreground">
+                  {quizProgress}/{quizStepCount}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${(quizProgress / quizStepCount) * 100}%` }}
                 />
               </div>
             </div>
-          ) : (
-            <StepVisual step={currentStep} />
           )}
 
-          <div className="mx-auto w-full max-w-[380px] text-center">
-            <h1 className="font-poppins text-[24px] font-bold leading-[1.18] tracking-normal text-[#101828]">
-              {currentStep.title}
-            </h1>
-            <p className="mx-auto mt-3 max-w-[334px] text-sm leading-6 text-[#667085]">
-              {currentStep.description}
-            </p>
-          </div>
+          <div key={step} className="animate-fadeInUp">
+            {isIntro && (
+              <div
+                className={cn(
+                  "mx-auto mb-6 flex aspect-square w-full max-w-[240px] items-center justify-center overflow-hidden rounded-[24px] border border-border/60 shadow-xs sm:max-w-[272px]",
+                  currentStep.accent,
+                )}
+              >
+                <div className="relative h-full w-full">
+                  <Image
+                    src={currentStep.image}
+                    alt={currentStep.title}
+                    fill
+                    sizes="(min-width: 640px) 272px, 240px"
+                    priority={step < 2}
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            )}
 
-          {currentStep.kind === "quiz" && (
-            <div className="mx-auto mt-9 flex w-full max-w-[416px] flex-col gap-4">
-              {currentStep.choices.map((choice) => {
-                const isActive = answers[currentStep.id] === choice.value;
-                const Icon = choice.icon;
+            <div className="mx-auto max-w-[42ch] text-center">
+              {isIntro && (
+                <p className="mb-2 font-poppins text-xs font-bold text-brand-orange-ink">
+                  Langkah {step + 1} dari 2
+                </p>
+              )}
+              <h1 className="font-poppins text-2xl font-bold leading-snug tracking-tight text-foreground">
+                {currentStep.title}
+              </h1>
+              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
+                {currentStep.description}
+              </p>
+            </div>
 
-                return (
-                  <button
-                    key={choice.value}
-                    type="button"
-                    onClick={() =>
-                      setAnswers((prev) => ({
-                        ...prev,
-                        [currentStep.id]: choice.value,
-                      }))
-                    }
-                    className={cn(
-                      "flex min-h-[88px] w-full items-center gap-4 rounded-lg border bg-white p-4 text-left shadow-sm transition active:scale-[0.99]",
-                      isActive
-                        ? "border-[#2D936C] bg-[#F0FBF6]"
-                        : "border-[#EAECF0] hover:border-[#B8E4D2]",
-                    )}
-                  >
-                    <span
+            {currentStep.kind === "quiz" && (
+              <div className="mt-7 flex flex-col gap-3">
+                {currentStep.choices.map((choice) => {
+                  const isActive = answers[currentStep.id] === choice.value;
+                  const Icon = choice.icon;
+
+                  return (
+                    <button
+                      key={choice.value}
+                      type="button"
+                      onClick={() =>
+                        setAnswers((prev) => ({
+                          ...prev,
+                          [currentStep.id]: choice.value,
+                        }))
+                      }
+                      aria-pressed={isActive}
                       className={cn(
-                        "flex size-12 shrink-0 items-center justify-center rounded-lg",
+                        "flex min-h-[76px] w-full items-center gap-4 rounded-2xl border p-4 text-left transition active:scale-[0.99]",
                         isActive
-                          ? "bg-[#2D936C] text-white"
-                          : "bg-[#F2F4F7] text-[#667085]",
+                          ? "border-primary bg-primary-light"
+                          : "border-border bg-surface-soft hover:border-primary/40",
                       )}
                     >
-                      <Icon className="size-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-poppins text-sm font-bold text-[#101828]">
-                        {choice.label}
+                      <span
+                        className={cn(
+                          "flex size-11 shrink-0 items-center justify-center rounded-xl",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-card text-muted-foreground",
+                        )}
+                      >
+                        <Icon className="size-5" aria-hidden="true" />
                       </span>
-                      <span className="mt-1.5 block text-xs leading-5 text-[#667085]">
-                        {choice.description}
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-poppins text-sm font-bold text-foreground">
+                          {choice.label}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          {choice.description}
+                        </span>
                       </span>
-                    </span>
-                    {isActive && <Check className="size-5 text-[#2D936C]" />}
+                      {isActive && (
+                        <Check
+                          className="size-5 shrink-0 text-primary"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {currentStep.kind === "frequency" && (
+              <div className="mt-7 rounded-2xl border border-border bg-surface-soft p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFrequency((value) => Math.max(0, value - 1))}
+                    className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-xs transition hover:bg-muted active:scale-95"
+                    aria-label="Turunkan frekuensi"
+                  >
+                    <Minus className="size-5" aria-hidden="true" />
                   </button>
-                );
-              })}
-            </div>
-          )}
 
-          {currentStep.kind === "frequency" && (
-            <div className="mx-auto mt-10 flex w-full max-w-[340px] items-center justify-center gap-4">
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFrequency((value) => Math.min(35, value + 1))}
-                  className="flex size-11 items-center justify-center rounded-lg border border-[#EAECF0] bg-white shadow-sm transition active:scale-95"
-                  aria-label="Naikkan frekuensi"
-                >
-                  <ChevronUp className="size-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFrequency((value) => Math.max(0, value - 1))}
-                  className="flex size-11 items-center justify-center rounded-lg border border-[#EAECF0] bg-white shadow-sm transition active:scale-95"
-                  aria-label="Turunkan frekuensi"
-                >
-                  <ChevronDown className="size-5" />
-                </button>
+                  <div className="flex items-baseline justify-center gap-2">
+                    <span className="font-poppins text-5xl font-bold leading-none tabular-nums text-brand-orange">
+                      {frequency}
+                    </span>
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      kali/minggu
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setFrequency((value) => Math.min(35, value + 1))}
+                    className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-xs transition hover:bg-muted active:scale-95"
+                    aria-label="Naikkan frekuensi"
+                  >
+                    <Plus className="size-5" aria-hidden="true" />
+                  </button>
+                </div>
+
+                <div className="mt-5">
+                  <input
+                    type="range"
+                    min={0}
+                    max={35}
+                    value={frequency}
+                    onChange={(event) => setFrequency(Number(event.target.value))}
+                    aria-label="Frekuensi kebiasaan per minggu"
+                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-muted accent-primary"
+                  />
+                  <div className="mt-2 flex justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>0 kali</span>
+                    <span>14 kali</span>
+                    <span>35 kali</span>
+                  </div>
+                </div>
               </div>
+            )}
 
-              <div className="flex items-end gap-2 rounded-lg bg-white px-6 py-4 shadow-sm">
-                <span className="font-poppins text-[56px] font-bold leading-none text-[#101828]">
-                  {frequency}
-                </span>
-                <span className="pb-2 text-sm font-semibold text-[#667085]">
-                  kali/minggu
-                </span>
+            {isSummary && (
+              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <SummaryCard label="Frekuensi" value={`${frequency}x/minggu`} />
+                <SummaryCard
+                  label="Metode"
+                  value={answers.method === "total" ? "Berhenti total" : "Bertahap"}
+                />
+                <SummaryCard
+                  label="Pemicu"
+                  value={
+                    answers.trigger === "stress"
+                      ? "Stres"
+                      : answers.trigger === "boredom"
+                        ? "Bosan"
+                        : "Malam"
+                  }
+                />
+                <SummaryCard
+                  label="Misi awal"
+                  value={
+                    answers.routine === "breathing"
+                      ? "Latihan napas"
+                      : answers.routine === "journaling"
+                        ? "Jurnal"
+                        : "Olahraga"
+                  }
+                />
               </div>
-            </div>
-          )}
-
-          {isSummary && (
-            <div className="mx-auto mt-9 grid w-full max-w-[416px] grid-cols-2 gap-4">
-              <SummaryCard label="Frekuensi" value={`${frequency}x/minggu`} />
-              <SummaryCard
-                label="Metode"
-                value={answers.method === "total" ? "Berhenti total" : "Bertahap"}
-              />
-              <SummaryCard
-                label="Pemicu"
-                value={
-                  answers.trigger === "stress"
-                    ? "Stres"
-                    : answers.trigger === "boredom"
-                      ? "Bosan"
-                      : "Malam"
-                }
-              />
-              <SummaryCard
-                label="Misi awal"
-                value={
-                  answers.routine === "breathing"
-                    ? "Latihan napas"
-                    : answers.routine === "journaling"
-                      ? "Jurnal"
-                      : "Olahraga"
-                }
-              />
-            </div>
-          )}
-        </div>
-      </section>
-
-      <footer className="shrink-0 px-6 pb-[calc(48px+env(safe-area-inset-bottom))] pt-8">
-        {isIntro && (
-          <div className="mb-7 flex items-center justify-center gap-2">
-            {STEPS.slice(0, 2).map((_, index) => (
-              <span
-                key={index}
-                className={cn(
-                  "h-2 rounded-full transition-all duration-300",
-                  step === index ? "w-8 bg-[#2D936C]" : "w-2 bg-[#D0D5DD]",
-                )}
-              />
-            ))}
+            )}
           </div>
-        )}
 
-        <Button
-          type="button"
-          onClick={goNext}
-          disabled={!canContinue}
-          className="h-[52px] w-full rounded-lg bg-[#2D936C] font-poppins text-base font-bold text-white shadow-[0_12px_28px_rgba(45,147,108,0.2)] hover:bg-[#257A5A]"
-        >
-          {isSummary ? "Lanjut ke Login" : isIntro ? "Selanjutnya" : "Simpan jawaban"}
-          <ArrowRight className="size-5" />
-        </Button>
+          <div className="mt-7">
+            {isIntro && (
+              <div className="mb-5 flex items-center justify-center gap-2">
+                {STEPS.slice(0, 2).map((_, index) => (
+                  <span
+                    key={index}
+                    className={cn(
+                      "h-2 rounded-full transition-all duration-300",
+                      step === index ? "w-8 bg-primary" : "w-2 bg-border",
+                    )}
+                  />
+                ))}
+              </div>
+            )}
 
-        <p className="pt-5 text-center text-sm text-[#475467]">
+            <Button
+              type="button"
+              onClick={goNext}
+              disabled={!canContinue}
+              className="h-12 w-full rounded-xl bg-primary font-heading text-sm font-bold text-primary-foreground shadow-xs hover:bg-primary-dark sm:text-base"
+            >
+              {isSummary ? "Lanjut ke Login" : isIntro ? "Selanjutnya" : "Simpan jawaban"}
+              <ArrowRight className="size-4 sm:size-5" aria-hidden="true" />
+            </Button>
+          </div>
+        </section>
+
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           Sudah punya akun?{" "}
           <button
             type="button"
             onClick={() => router.push("/auth/login")}
-            className="font-bold text-[#2D936C]"
+            className="font-bold text-primary hover:underline"
           >
             Masuk
           </button>
         </p>
-      </footer>
-    </main>
-  );
-}
-
-function StepVisual({ step }: { step: Exclude<OnboardingStep, IntroStep> }) {
-  if (step.kind === "summary") {
-    return (
-      <div className="mx-auto mb-9 flex size-24 items-center justify-center rounded-full bg-[#EAF7F1] shadow-sm">
-        <div className="relative size-14">
-          <Image
-            src={step.image}
-            alt={step.title}
-            fill
-            sizes="56px"
-            className="object-contain"
-          />
-        </div>
       </div>
-    );
-  }
-
-  const Icon = STEP_VISUALS[step.id] ?? Sparkles;
-
-  return (
-    <div className="mx-auto mb-9 flex size-20 items-center justify-center rounded-[24px] bg-[#EAF7F1] text-[#2D936C] shadow-sm">
-      <Icon className="size-9" strokeWidth={2.2} />
-    </div>
+    </main>
   );
 }
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-[#EAECF0] bg-white px-4 py-3 text-left shadow-sm">
-      <p className="text-xs font-semibold text-[#667085]">{label}</p>
-      <p className="mt-1 font-poppins text-sm font-bold text-[#101828]">
+    <div className="rounded-2xl border border-border bg-surface-soft px-4 py-3.5 text-left">
+      <p className="text-xs font-semibold text-brand-orange-ink">{label}</p>
+      <p className="mt-1 font-poppins text-sm font-bold text-foreground">
         {value}
       </p>
     </div>
