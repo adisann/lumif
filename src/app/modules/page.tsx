@@ -1,138 +1,116 @@
-// modules/pages
 "use client";
 
-import { useRouter } from "next/navigation";
-import StatusBar from "@/components/StatusBar";
-import { HiArrowLeft, HiPlayCircle, HiLockClosed } from "react-icons/hi2";
-
-const MODULES = [
-  {
-    id: 1,
-    title: "Pengenalan modul terapi CBT & ACT",
-    lessons: 5,
-    duration: "15 Menit",
-    locked: false,
-  },
-  {
-    id: 2,
-    title: "Mengenal Pemicu Utama",
-    lessons: 5,
-    duration: "15 Menit",
-    locked: true,
-  },
-  {
-    id: 3,
-    title: "Rekonstruksi Kebiasaan",
-    lessons: 5,
-    duration: "15 Menit",
-    locked: true,
-  },
-  {
-    id: 4,
-    title: "Intervensi Dini",
-    lessons: 5,
-    duration: "15 Menit",
-    locked: true,
-  },
-  {
-    id: 5,
-    title: "Teknik Grounding",
-    lessons: 5,
-    duration: "15 Menit",
-    locked: true,
-  },
-];
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import BottomNav from "@/components/BottomNav";
+import ScreenHeader from "@/components/ScreenHeader";
+import { loadCompletedModuleIds } from "@/components/ModuleReader";
+import { MODULES_DATA } from "@/lib/modulesData";
+import { BookOpen, CheckCircle2, Clock, ArrowRight } from "lucide-react";
 
 export default function ModulesListScreen() {
-  const router = useRouter();
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const raf = window.requestAnimationFrame(() => {
+      setCompletedIds(loadCompletedModuleIds());
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
 
   return (
-    <div className="bg-[#FAFAFA] relative h-full w-full flex flex-col font-lexend overflow-hidden">
+    <div className="lumif-with-nav relative flex min-h-dvh flex-col bg-surface-soft font-sans text-foreground">
+      <ScreenHeader
+        title="Modul Edukasi"
+        subtitle="Bacaan ringkas psikologi pemulihan kebiasaan"
+      />
 
-      {/* Top Nav */}
-      <header className="shrink-0 bg-white px-[24px] pb-[18px] pt-[20px]">
-        <div className="grid grid-cols-[44px_1fr_44px] items-center">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex h-[40px] w-[40px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white text-black shadow-sm transition active:scale-95"
-            aria-label="Kembali"
-          >
-            <HiArrowLeft className="h-[18px] w-[18px]" />
-          </button>
-
-          <h1 className="text-center font-poppins text-[20px] font-bold tracking-[-0.4px] text-black">
-            Progres Modul
-          </h1>
-
-          <div aria-hidden="true" />
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto px-[24px] pb-[120px]">
-
-        {/* Hero Section */}
-        <div className="bg-[#2D936C] rounded-[24px] p-[24px] relative overflow-hidden mb-[24px]">
-          <div className="relative z-10 w-[60%]">
-            <h2 className="font-poppins text-[20px] font-bold text-white leading-[1.3] mb-[16px]">
-              Pembaruan Sistem untuk Membantu Mengontrol Diri
-            </h2>
-            <div className="inline-block bg-white/20 backdrop-blur-sm rounded-full px-[12px] py-[4px]">
-              <span className="text-[12px] text-white font-medium">1/5 Bab Selesai</span>
-            </div>
-          </div>
-          {/* Decorative graphic would go here */}
-          <div className="absolute right-[-20px] bottom-[-20px] w-[150px] h-[150px] bg-white/10 rounded-full blur-[20px]"></div>
-          <div className="absolute right-[20px] top-[20px] w-[80px] h-[80px] bg-white/10 rounded-full blur-[10px]"></div>
-        </div>
-
-        {/* Timeline / List */}
-        <div className="relative ml-[24px]">
-          {/* Vertical Line */}
-          <div className="absolute left-[16px] top-[24px] bottom-[24px] w-[2px] bg-[#e5e5e5]"></div>
-
-          {/* Module Items */}
-          <div className="flex flex-col gap-[32px] relative z-10">
-            {MODULES.map((mod, index) => (
-              <div
-                key={mod.id}
-                className="flex items-start gap-[16px] cursor-pointer"
-                onClick={() => !mod.locked && router.push(`/modules/${mod.id}`)}
-              >
-                {/* Timeline Dot */}
-                <div className={`mt-[12px] w-[34px] h-[34px] rounded-full flex items-center justify-center border-[3px] border-[#FAFAFA] shadow-sm shrink-0 ${mod.locked ? "bg-[#e5e5e5] text-[#999]" : "bg-[#2D936C] text-white"}`}>
-                  {mod.locked ? <HiLockClosed className="w-[16px] h-[16px]" /> : <span className="font-bold text-[14px]">{index + 1}</span>}
-                </div>
-
-                {/* Card */}
-                <div className={`flex-1 rounded-[16px] border p-[16px] transition-all ${mod.locked ? "bg-white/50 border-transparent" : "bg-white border-[#f0f0f0] shadow-sm hover:border-[#2D936C]"}`}>
-                  <h3 className={`font-poppins font-bold text-[14px] leading-[1.4] mb-[8px] ${mod.locked ? "text-[#999]" : "text-black"}`}>
-                    {mod.title}
-                  </h3>
-                  <div className="flex items-center gap-[8px] text-[12px] text-[#666]">
-                    <span>{mod.lessons} Pelajaran</span>
-                    <span>•</span>
-                    <div className="flex items-center gap-[4px]">
-                      <HiPlayCircle className="w-[14px] h-[14px]" />
-                      <span>{mod.duration}</span>
-                    </div>
-                  </div>
-                </div>
+      <main className="flex-1 px-4 pb-[calc(110px+env(safe-area-inset-bottom))] pt-5 md:px-8 md:pb-10">
+        <div className="mx-auto w-full max-w-5xl space-y-6">
+          <div className="relative overflow-hidden rounded-3xl bg-[#257B5A] p-6 text-white md:p-8">
+            <div className="relative z-10 max-w-xl">
+              <p className="text-xs font-bold uppercase tracking-wide text-[#EDBF45]">
+                Kurikulum CBT & ACT
+              </p>
+              <h2 className="mt-1.5 font-heading text-xl font-bold leading-snug md:text-2xl">
+                Belajar Menguasai Pikiran & Kendali Diri
+              </h2>
+              <p className="mt-2 text-xs leading-relaxed text-white/90 md:text-sm">
+                Seluruh 5 bab kini lengkap disusun berbasis riset psikologi klinis dan neurosains dengan format bacaan nyaman serta langkah kecil siap praktik.
+              </p>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-bold text-white">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#EDBF45]" aria-hidden="true" />
+                <span>
+                  {completedIds.filter((id) => MODULES_DATA.some((m) => m.id === id)).length} dari{" "}
+                  {MODULES_DATA.length} bab selesai dibaca
+                </span>
               </div>
-            ))}
+            </div>
+
+            <BookOpen
+              className="absolute -bottom-4 -right-4 h-36 w-36 text-white/10"
+              aria-hidden="true"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {MODULES_DATA.map((mod) => {
+              const isCompleted = completedIds.includes(mod.id);
+
+              return (
+                <Link
+                  key={mod.id}
+                  href={`/modules/${mod.id}`}
+                  className="group flex flex-col justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/50"
+                >
+                  <div>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-xl font-heading text-sm font-bold ${
+                          isCompleted
+                            ? "bg-primary-light text-primary"
+                            : "bg-surface-soft text-brand-orange-ink"
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <CheckCircle2 className="h-5 w-5 text-primary" aria-hidden="true" />
+                        ) : (
+                          mod.number
+                        )}
+                      </span>
+
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                        {mod.readMinutes} menit · {mod.sections.length} bagian
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] font-bold text-primary">
+                      BAB {mod.number}
+                    </p>
+                    <h3 className="mt-1 font-heading text-base font-bold leading-snug text-card-foreground group-hover:text-primary">
+                      {mod.title}
+                    </h3>
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {mod.subtitle}
+                    </p>
+                  </div>
+
+                  <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-primary">
+                    {isCompleted ? "Baca Ulang" : "Mulai Baca"}
+                    <ArrowRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Floating Action Button / CTA */}
-      <div className="absolute bottom-[40px] left-0 w-full px-[24px] z-20">
-        <button
-          onClick={() => router.push('/modules/1')}
-          className="w-full bg-black text-white h-[56px] rounded-[16px] font-poppins font-bold text-[16px] shadow-lg hover:bg-gray-800 transition-colors"
-        >
-          Pelajari modul sekarang →
-        </button>
-      </div>
+      <BottomNav />
     </div>
   );
 }
