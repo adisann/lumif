@@ -9,10 +9,13 @@ const nextConfig: NextConfig = {
         destination: "/login",
         permanent: false,
       },
+    ];
+  },
+  async rewrites() {
+    return [
       {
-        source: "/auth/login",
-        destination: "/login",
-        permanent: false,
+        source: "/login",
+        destination: "/auth/login",
       },
     ];
   },
