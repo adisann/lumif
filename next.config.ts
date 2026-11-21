@@ -9,6 +9,36 @@ const nextConfig: NextConfig = {
         destination: "/login",
         permanent: false,
       },
+      {
+        source: "/signup",
+        destination: "/register",
+        permanent: false,
+      },
+      {
+        source: "/auth/signup",
+        destination: "/register",
+        permanent: false,
+      },
+      {
+        source: "/forgot-password",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/reset-password",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/auth/forgot-password",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/auth/reset-password",
+        destination: "/login",
+        permanent: false,
+      },
     ];
   },
   async rewrites() {
@@ -16,6 +46,10 @@ const nextConfig: NextConfig = {
       {
         source: "/login",
         destination: "/auth/login",
+      },
+      {
+        source: "/register",
+        destination: "/auth/register",
       },
     ];
   },

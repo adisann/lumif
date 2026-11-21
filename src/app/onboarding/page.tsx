@@ -246,7 +246,7 @@ export default function OnboardingScreen() {
       routine: answers.routine as OnboardingRoutine,
       frequency,
     });
-    router.push("/login");
+    router.push("/register");
   };
 
   const goBack = () => {
@@ -493,7 +493,7 @@ export default function OnboardingScreen() {
               disabled={!canContinue}
               className="h-12 w-full rounded-xl bg-primary font-heading text-sm font-bold text-primary-foreground shadow-xs hover:bg-primary-dark sm:text-base"
             >
-              {isSummary ? "Lanjut ke Login" : isIntro ? "Selanjutnya" : "Simpan jawaban"}
+              {isSummary ? "Lanjut Buat Akun" : isIntro ? "Selanjutnya" : "Simpan jawaban"}
               <ArrowRight className="size-4 sm:size-5" aria-hidden="true" />
             </Button>
           </div>
