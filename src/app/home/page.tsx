@@ -25,6 +25,8 @@ import BottomNav from "@/components/BottomNav";
 import EmergencyFlow from "@/components/EmergencyFlow";
 import UpdateKondisiModal from "@/components/UpdateKondisiModal";
 import RelapseResetFlow from "@/components/RelapseResetFlow";
+import StreakFlame from "@/components/StreakFlame";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -83,12 +85,15 @@ function getTimeGreeting() {
   return "Selamat malam";
 }
 
-function getTodayLocalDate() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+function toLocalDateKey(date: Date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function getTodayLocalDate() {
+  return toLocalDateKey(new Date());
 }
 
 export default function DashboardScreen() {
@@ -105,20 +110,23 @@ export default function DashboardScreen() {
   const [isLoadingMissions, setIsLoadingMissions] = useState(true);
   const [missionError, setMissionError] = useState("");
   const [isOfflineDemo, setIsOfflineDemo] = useState(false);
-  const [userName, setUserName] = useState("Sobat Lumif");
+  const [userName, setUserName] = useState("");
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [cleanDays, setCleanDays] = useState<number | null>(null);
   const [urgeCount, setUrgeCount] = useState<number | null>(null);
   const [hoursCount, setHoursCount] = useState<number | null>(null);
   const [minutesCount, setMinutesCount] = useState<number | null>(null);
   const [energyScore, setEnergyScore] = useState<number | null>(null);
+  const [hasCheckinToday, setHasCheckinToday] = useState(false);
   const [petState, setPetState] = useState<PetState>(DEFAULT_PET_STATE);
+  const [isHydratedPet, setIsHydratedPet] = useState(false);
   const [previewStage, setPreviewStage] = useState<PetStage | null>(null);
   const [recoveryPlan, setRecoveryPlan] = useState<OnboardingData | null>(null);
 
   useEffect(() => {
     const raf = window.requestAnimationFrame(() => {
       setPetState(loadPetState());
+      setIsHydratedPet(true);
     });
     const unsub = subscribePetState(() => {
       setPetState(loadPetState());
@@ -148,6 +156,7 @@ export default function DashboardScreen() {
       minutesCount: number;
       urgeCount: number;
       energyScore: number | null;
+      hasCheckinToday?: boolean;
       missions: Mission[];
       recoveryPlan: OnboardingData;
     };
@@ -224,6 +233,7 @@ export default function DashboardScreen() {
             setMinutesCount(cached.data.minutesCount);
             setUrgeCount(cached.data.urgeCount);
             setEnergyScore(cached.data.energyScore);
+            setHasCheckinToday(Boolean(cached.data.hasCheckinToday));
             setMissions(cached.data.missions);
             setRecoveryPlan(cached.data.recoveryPlan);
             setIsLoadingMissions(false);
@@ -255,7 +265,7 @@ export default function DashboardScreen() {
             .maybeSingle(),
           supabase
             .from("checkins")
-            .select("id, urge_score, energy_score")
+            .select("id, urge_score, energy_score, created_at")
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
             .limit(50),
@@ -288,10 +298,14 @@ export default function DashboardScreen() {
         setMinutesCount(nextMinutesCount);
 
         const nextUrgeCount = checkinRows ? checkinRows.length : 0;
+        const nextHasCheckinToday = Boolean(
+          checkinRows?.some((row) => toLocalDateKey(new Date(row.created_at)) === today)
+        );
         const latestEnergy =
           checkinRows && checkinRows.length > 0 && typeof checkinRows[0].energy_score === "number"
             ? checkinRows[0].energy_score
             : null;
+        setHasCheckinToday(nextHasCheckinToday);
         setUrgeCount(nextUrgeCount);
         if (latestEnergy !== null) {
           setEnergyScore(latestEnergy);
@@ -339,6 +353,7 @@ export default function DashboardScreen() {
           minutesCount: nextMinutesCount,
           urgeCount: nextUrgeCount,
           energyScore: latestEnergy,
+          hasCheckinToday: nextHasCheckinToday,
           missions: resolvedMissions,
           recoveryPlan: recoveryProfile,
         });
@@ -412,6 +427,8 @@ export default function DashboardScreen() {
     }
   };
 
+  const isStreakLitToday =
+    hasCheckinToday || missions.some((mission) => mission.completed);
   const pendingMissionsCount = missions.filter((m) => !m.completed).length;
   const petSpecies = getPetSpecies(petState.speciesId);
   const petProgress = getPetProgress(petState.xp, petSpecies);
@@ -451,16 +468,20 @@ export default function DashboardScreen() {
                       <p className="font-heading text-xs text-white/90">
                         {getTimeGreeting()},
                       </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-heading text-base font-bold leading-tight">
-                          {userName}
-                        </p>
-                        {isOfflineDemo && (
-                          <span className="rounded-md bg-black/25 px-2 py-0.5 text-[11px] font-semibold text-white">
-                            Mode Demo Offline
-                          </span>
-                        )}
-                      </div>
+                      {isLoadingMissions && !userName ? (
+                        <Skeleton className="mt-1 h-4 w-28 rounded-md bg-white/25" />
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-heading text-base font-bold leading-tight">
+                            {userName || "Pengguna"}
+                          </p>
+                          {isOfflineDemo && (
+                            <span className="rounded-md bg-black/25 px-2 py-0.5 text-[11px] font-semibold text-white">
+                              Mode Demo Offline
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -518,35 +539,77 @@ export default function DashboardScreen() {
                 </div>
 
                 <div className="flex flex-col items-center text-center md:items-start md:text-left">
-                  <h1 className="mb-2 font-heading text-[clamp(1.85rem,3vw,2.5rem)] font-bold tracking-tight text-white">
-                    {cleanDays !== null ? (
-                      <>
-                        <span className="text-[#FF9E3D]">{cleanDays} Hari</span> Bersih
-                      </>
+                  <div className="mb-2 flex flex-wrap items-center justify-center gap-2 md:justify-start">
+                    {isLoadingMissions && cleanDays === null ? (
+                      <Skeleton className="h-5 w-40 bg-white/20" />
+                    ) : isStreakLitToday ? (
+                      <Link
+                        href="/insight"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FFF6D6] transition hover:text-white"
+                      >
+                        <StreakFlame active size="sm" showSparks />
+                        <span>Streak Hari Ini Menyala</span>
+                      </Link>
                     ) : (
-                      "Memuat Progres"
+                      <button
+                        type="button"
+                        onClick={() => setIsUpdateKondisiOpen(true)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-white/85 transition hover:text-white"
+                      >
+                        <StreakFlame active={false} size="sm" showSparks={false} />
+                        <span>Nyalakan Streak Hari Ini</span>
+                      </button>
                     )}
-                  </h1>
+                  </div>
 
-                  <p className="max-w-md text-sm leading-relaxed text-white/90">
-                    {cleanDays !== null
-                      ? `${Math.max(1, (recoveryPlan?.goalDays ?? 7) - (cleanDays % (recoveryPlan?.goalDays ?? 7)))} hari lagi menuju target ${recoveryPlan?.goalDays ?? 7} hari berikutnya.`
-                      : "Menghubungkan data pemulihanmu..."}
-                  </p>
+                  {cleanDays !== null ? (
+                    <h1 className="mb-2 font-heading text-[clamp(1.85rem,3vw,2.5rem)] font-bold tracking-tight text-white">
+                      <span className="text-[#FF9E3D]">{cleanDays} Hari</span> Bersih
+                    </h1>
+                  ) : (
+                    <Skeleton className="mb-3 h-9 w-48 rounded-xl bg-white/25" />
+                  )}
 
-                  {recoveryPlan && (
-                    <div className="mt-3 flex flex-wrap justify-center gap-2 text-[11px] font-semibold text-white/90 md:justify-start">
-                      <span className="rounded-lg bg-white/15 px-2.5 py-1">
-                        Jalur: {METHOD_LABELS[recoveryPlan.method]}
-                      </span>
-                      <span className="rounded-lg bg-white/15 px-2.5 py-1">
-                        Alasan: {REASON_LABELS[recoveryPlan.reason]}
-                      </span>
+                  {cleanDays !== null ? (
+                    <p className="max-w-md text-sm leading-relaxed text-white/90">
+                      {`${Math.max(1, (recoveryPlan?.goalDays ?? 7) - (cleanDays % (recoveryPlan?.goalDays ?? 7)))} hari lagi menuju target ${recoveryPlan?.goalDays ?? 7} hari berikutnya.`}
+                    </p>
+                  ) : (
+                    <Skeleton className="h-4 w-64 rounded-md bg-white/20" />
+                  )}
+
+                  {cleanDays === null && isLoadingMissions ? (
+                    <div className="mt-3 flex gap-2">
+                      <Skeleton className="h-6 w-28 rounded-lg bg-white/15" />
+                      <Skeleton className="h-6 w-32 rounded-lg bg-white/15" />
                     </div>
+                  ) : (
+                    recoveryPlan && (
+                      <div className="mt-3 flex flex-wrap justify-center gap-2 text-[11px] font-semibold text-white/90 md:justify-start">
+                        <span className="rounded-lg bg-white/15 px-2.5 py-1">
+                          Jalur: {METHOD_LABELS[recoveryPlan.method]}
+                        </span>
+                        <span className="rounded-lg bg-white/15 px-2.5 py-1">
+                          Alasan: {REASON_LABELS[recoveryPlan.reason]}
+                        </span>
+                      </div>
+                    )
                   )}
                 </div>
 
-                {(urgeCount !== null && urgeCount > 0) || energyScore !== null ? (
+                {cleanDays === null && isLoadingMissions ? (
+                  <div className="mt-7 grid grid-cols-3 gap-3">
+                    {[1, 2, 3].map((statSkeleton) => (
+                      <div
+                        key={statSkeleton}
+                        className="rounded-2xl border border-white/15 bg-[#1D6348] p-3.5 text-center"
+                      >
+                        <Skeleton className="mx-auto mb-1.5 h-5 w-14 bg-white/25" />
+                        <Skeleton className="mx-auto h-3 w-20 bg-white/15" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (urgeCount !== null && urgeCount > 0) || energyScore !== null ? (
                   <div className="mt-7 grid grid-cols-3 gap-3">
                     <div className="rounded-2xl border border-white/15 bg-[#1D6348] p-3.5 text-center">
                       <div className="mb-1 font-heading text-xl font-bold leading-none text-white">
@@ -610,8 +673,8 @@ export default function DashboardScreen() {
                   </div>
 
                   <div>
-                    <h2 className="font-heading text-base font-bold uppercase tracking-wide">
-                      BUTUH BANTUAN
+                    <h2 className="font-heading text-base font-bold">
+                      Butuh Bantuan
                     </h2>
                     <p className="text-xs text-white/90">
                       Dorongan terasa kuat? Klik untuk jeda darurat sekarang
@@ -635,8 +698,16 @@ export default function DashboardScreen() {
 
                 <div className="flex flex-col gap-3">
                   {isLoadingMissions && (
-                    <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
-                      Memuat misi hari ini...
+                    <div className="space-y-3" aria-busy="true" aria-label="Memuat misi harian">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="flex min-h-[58px] items-center gap-3.5 rounded-2xl border border-border bg-card px-4 py-3"
+                        >
+                          <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
+                          <Skeleton className="h-4 flex-1" />
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -801,6 +872,21 @@ export default function DashboardScreen() {
             <aside className="flex flex-col gap-5 px-4 md:px-0 lg:col-span-4">
               {/* 3D Pet Companion Card with Level & Evolution */}
               <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
+                {!isHydratedPet ? (
+                  <div className="space-y-4" aria-busy="true" aria-label="Memuat pendamping">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-2">
+                        <Skeleton className="h-5 w-28" />
+                        <Skeleton className="h-3.5 w-20" />
+                      </div>
+                      <Skeleton className="h-9 w-24 rounded-xl" />
+                    </div>
+                    <Skeleton className="h-52 w-full rounded-2xl" />
+                    <Skeleton className="h-14 w-full rounded-2xl" />
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                  </div>
+                ) : (
+                <>
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -916,6 +1002,8 @@ export default function DashboardScreen() {
                   <Wind className="h-4 w-4" aria-hidden="true" />
                   <span>Latihan Napas Bersama</span>
                 </Link>
+                </>
+                )}
               </section>
 
               {/* Desktop Emergency Card */}

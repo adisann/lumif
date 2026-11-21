@@ -5,7 +5,6 @@ import type { Dispatch, SetStateAction } from "react";
 import {
   CheckCircle2,
   Clock3,
-  Flame,
   Loader2,
   MapPin,
   Moon,
@@ -186,13 +185,6 @@ export default function UrgeCheckInModal({
         <div className="shrink-0 border-b border-[#F1F5F9] px-6 pb-5 pt-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#FFF2E8] px-3 py-1.5">
-                <Flame className="h-4 w-4 text-[#E86B1C]" />
-                <span className="font-poppins text-xs font-bold text-[#B45309]">
-                  Check-in hasrat
-                </span>
-              </div>
-
               <h2 id="urge-checkin-title" className="font-poppins text-[23px] font-bold leading-tight text-[#0F172A]">
                 Catat dorongan yang muncul
               </h2>

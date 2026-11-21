@@ -136,41 +136,26 @@ export default function GamesPage() {
 
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-[calc(110px+env(safe-area-inset-bottom))] pt-5 md:px-8 md:pb-10">
         {!isPlaying ? (
-          <div className="space-y-7">
-            {/* Quick Suggestion Strip + Category Filter */}
-            <section className="rounded-3xl bg-[#257B5A] p-5 text-white sm:p-6">
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                <div>
-                  <p className="text-xs font-bold text-[#EDBF45]">
-                    Butuh alihkan perhatian cepat?
-                  </p>
-                  <h2 className="mt-1 font-heading text-lg font-bold sm:text-xl">
-                    Tenangkan diri lewat game interaktif atau kuis trivia visual
-                  </h2>
-                  <p className="mt-1 max-w-xl text-xs text-white/90 sm:text-sm">
-                    Dirancang tanpa batas waktu ketat agar pikiran punya jeda segar saat bosan atau dorongan muncul.
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 flex-wrap gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => openGame("passing-waves")}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-white px-4 font-heading text-xs font-bold text-[#257B5A] transition hover:bg-white/90"
-                  >
-                    Ombak Berlalu
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openTrivia("landmark-dunia")}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[#FF8200] px-4 font-heading text-xs font-bold text-white transition hover:brightness-95"
-                  >
-                    Tebak Landmark
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </div>
+          <div className="space-y-6">
+            {/* Calm Overview & Single Primary Quick Action */}
+            <section className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:p-6">
+              <div className="space-y-1">
+                <h2 className="font-heading text-base font-bold text-foreground sm:text-lg">
+                  Butuh pengalih fokus singkat?
+                </h2>
+                <p className="max-w-xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  Pilih permainan singkat atau kuis visual tanpa batas waktu ketat untuk memberi jeda saat dorongan atau rasa bosan muncul.
+                </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => openGame("passing-waves")}
+                className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-heading text-xs font-bold text-primary-foreground transition hover:bg-primary-dark sm:text-sm"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                <span>Mulai Sesi Singkat</span>
+              </button>
             </section>
 
             {/* Filter Pills */}
@@ -181,9 +166,9 @@ export default function GamesPage() {
             >
               {(
                 [
-                  { id: "all", label: "Semua Aktivitas" },
+                  { id: "all", label: "Semua" },
                   { id: "trivia", label: `Kuis Trivia (${TRIVIA_DECKS.length})` },
-                  { id: "relax", label: `Relaksasi & Fokus (${MINI_GAMES.length})` },
+                  { id: "relax", label: `Mini Game (${MINI_GAMES.length})` },
                 ] as { id: GamesTab; label: string }[]
               ).map((tab) => {
                 const active = selectedTab === tab.id;
@@ -196,8 +181,8 @@ export default function GamesPage() {
                     onClick={() => setSelectedTab(tab.id)}
                     className={`min-h-[40px] rounded-xl px-4 font-heading text-xs font-bold transition ${
                       active
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "border border-border bg-card text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border bg-card text-muted-foreground hover:border-border hover:text-foreground"
                     }`}
                   >
                     {tab.label}
@@ -206,15 +191,15 @@ export default function GamesPage() {
               })}
             </div>
 
-            {/* Visual Photo Trivia Section */}
+            {/* Visual Photo Trivia Section (Clean Split Card, Zero Nested Floating Blur Boxes) */}
             {(selectedTab === "all" || selectedTab === "trivia") && (
-              <section className="space-y-3.5">
+              <section className="space-y-3">
                 <div>
-                  <h2 className="font-heading text-base font-bold text-foreground sm:text-lg">
+                  <h2 className="font-heading text-base font-bold text-foreground">
                     Kuis Trivia Visual
                   </h2>
-                  <p className="text-xs text-muted-foreground sm:text-sm">
-                    Tebak fakta unik dunia, alam, kuliner, hingga antariksa dengan tempo santai ala kuis interaktif.
+                  <p className="text-xs text-muted-foreground">
+                    Tebak gambar dunia, alam, kuliner, dan antariksa dengan tempo santai.
                   </p>
                 </div>
 
@@ -224,34 +209,32 @@ export default function GamesPage() {
                       key={deck.id}
                       type="button"
                       onClick={() => openTrivia(deck.id)}
-                      className="group relative h-56 w-full overflow-hidden rounded-3xl border border-border bg-card text-left shadow-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-64"
+                      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-left transition hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
-                      <Image
-                        src={deck.coverImage}
-                        alt={deck.coverAlt}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 480px"
-                        unoptimized
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                      />
-                      <div
-                        aria-hidden="true"
-                        className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent"
-                      />
+                      <div className="relative h-40 w-full overflow-hidden bg-muted sm:h-44">
+                        <Image
+                          src={deck.coverImage}
+                          alt={deck.coverAlt}
+                          fill
+                          sizes="(max-width: 640px) 100vw, 480px"
+                          unoptimized
+                          className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                        />
+                      </div>
 
-                      <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-3 rounded-2xl border border-white/40 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-md dark:border-border/80 dark:bg-card/90">
+                      <div className="flex w-full items-center justify-between gap-3 p-4">
                         <div className="min-w-0">
-                          <h3 className="truncate font-heading text-sm font-bold text-[#071013] dark:text-foreground sm:text-base">
+                          <h3 className="truncate font-heading text-sm font-bold text-foreground group-hover:text-primary sm:text-base">
                             {deck.title}
                           </h3>
-                          <p className="mt-0.5 truncate text-xs font-medium text-[#475569] dark:text-muted-foreground">
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {deck.duration} · {deck.questions.length} soal
                           </p>
                         </div>
 
-                        <span className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 font-heading text-xs font-bold text-primary-foreground shadow-xs transition group-hover:bg-primary-dark">
-                          <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary">
                           <span>Main</span>
+                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                         </span>
                       </div>
                     </button>
@@ -267,10 +250,10 @@ export default function GamesPage() {
                 return (
                   <section key={group.key} className="space-y-3">
                     <div>
-                      <h2 className="font-heading text-base font-bold text-foreground sm:text-lg">
+                      <h2 className="font-heading text-base font-bold text-foreground">
                         {group.title}
                       </h2>
-                      <p className="text-xs text-muted-foreground sm:text-sm">
+                      <p className="text-xs text-muted-foreground">
                         {group.subtitle}
                       </p>
                     </div>
@@ -283,29 +266,27 @@ export default function GamesPage() {
                             key={game.id}
                             type="button"
                             onClick={() => openGame(game.id)}
-                            className="group flex flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/45 hover:bg-card/80 active:scale-[0.99]"
+                            className="group flex flex-col justify-between rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                           >
                             <div>
                               <div className="mb-3 flex items-center justify-between gap-2">
-                                <span
-                                  className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${game.accentBg} ${game.accentText}`}
-                                >
-                                  <Icon className="h-5 w-5" aria-hidden="true" />
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-surface-soft text-primary">
+                                  <Icon className="h-4.5 w-4.5" aria-hidden="true" />
                                 </span>
-                                <span className="text-[11px] font-semibold text-muted-foreground">
+                                <span className="text-xs font-medium text-muted-foreground">
                                   {game.duration}
                                 </span>
                               </div>
 
-                              <h3 className="font-heading text-base font-bold text-card-foreground group-hover:text-primary">
+                              <h3 className="font-heading text-sm font-bold text-card-foreground group-hover:text-primary sm:text-base">
                                 {game.title}
                               </h3>
-                              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                                 {game.description}
                               </p>
                             </div>
 
-                            <div className="mt-4 flex items-center justify-between pt-2 text-[11px] font-semibold text-brand-orange-ink">
+                            <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-xs font-medium text-muted-foreground">
                               <span>{game.mechanism}</span>
                               <ArrowRight
                                 className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
@@ -321,41 +302,40 @@ export default function GamesPage() {
               })}
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-4xl rounded-3xl border border-border bg-card p-4 shadow-xs sm:p-6">
+          <div className="mx-auto w-full max-w-4xl rounded-2xl border border-border bg-card p-4 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
               <button
                 type="button"
                 onClick={closeActive}
-                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-surface-soft px-3.5 text-xs font-bold text-foreground hover:bg-muted"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-border bg-surface-soft px-3.5 text-xs font-semibold text-foreground hover:bg-muted"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Semua Permainan
+                Kembali ke daftar
               </button>
 
-              <span className="text-xs font-semibold text-muted-foreground">
-                Durasi santai:{" "}
+              <span className="text-xs font-medium text-muted-foreground">
                 {activeTrivia ? activeTrivia.duration : activeGame?.duration}
               </span>
             </div>
 
             {completionSummary ? (
               <div className="flex flex-col items-center py-8 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-light text-primary">
-                  <CheckCircle2 className="h-9 w-9" aria-hidden="true" />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-light text-primary">
+                  <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
                 </div>
-                <h2 className="font-heading text-xl font-bold text-foreground">
-                  Sesi Selesai dengan Tenang
+                <h2 className="font-heading text-lg font-bold text-foreground sm:text-xl">
+                  Sesi Selesai
                 </h2>
-                <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
                   {completionSummary}
                 </p>
 
-                <div className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#FCF6E3] px-3.5 py-2 text-xs font-bold text-[#071013] dark:bg-amber-950/60 dark:text-amber-300">
-                  <Coins className="h-4 w-4" aria-hidden="true" />
-                  <span>+15 XP Pendamping & +10 Koin ditambahkan</span>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-soft px-3.5 py-2 text-xs font-semibold text-foreground">
+                  <Coins className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span>+15 XP Pendamping &amp; +10 Koin</span>
                 </div>
 
-                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <div className="mt-6 flex flex-wrap justify-center gap-2.5">
                   <button
                     type="button"
                     onClick={() => {
@@ -370,14 +350,14 @@ export default function GamesPage() {
                   <button
                     type="button"
                     onClick={closeActive}
-                    className="min-h-[44px] rounded-xl border border-border bg-surface-soft px-5 font-heading text-xs font-bold text-foreground hover:bg-muted"
+                    className="min-h-[44px] rounded-xl border border-border bg-card px-5 font-heading text-xs font-semibold text-foreground hover:bg-surface-soft"
                   >
-                    Pilih Game Lain
+                    Pilih Aktivitas Lain
                   </button>
                   <button
                     type="button"
                     onClick={() => router.push("/home")}
-                    className="min-h-[44px] rounded-xl border border-border bg-card px-5 font-heading text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="min-h-[44px] rounded-xl border border-border bg-card px-4 font-heading text-xs font-medium text-muted-foreground hover:text-foreground"
                   >
                     Ke Beranda
                   </button>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import { createClient } from "@/lib/supabase/client";
 import { invalidateUserCache, readUserCache, writeUserCache } from "@/lib/userCache";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
   MessageSquare,
@@ -795,9 +796,13 @@ export default function CommunityScreen() {
                 <h2 className="font-heading text-sm font-bold text-card-foreground">
                   Kategori
                 </h2>
-                <span className="rounded-lg bg-primary-light px-2.5 py-1 text-xs font-bold text-primary">
-                  {filteredPosts.length} postingan
-                </span>
+                {isLoadingPosts ? (
+                  <Skeleton className="h-6 w-20 rounded-lg" />
+                ) : (
+                  <span className="rounded-lg bg-primary-light px-2.5 py-1 text-xs font-bold text-primary">
+                    {filteredPosts.length} postingan
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -846,8 +851,27 @@ export default function CommunityScreen() {
           {/* Feed Column */}
           <section className="lg:col-span-8">
             {isLoadingPosts ? (
-              <div className="rounded-2xl border border-border bg-card p-6 text-center text-sm font-medium text-muted-foreground shadow-xs">
-                Memuat komunitas...
+              <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat postingan komunitas">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <div className="flex gap-2 pt-1">
+                      <Skeleton className="h-8 w-16 rounded-full" />
+                      <Skeleton className="h-8 w-16 rounded-full" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filteredPosts.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-xs">

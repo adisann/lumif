@@ -6,7 +6,8 @@ import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/client";
-import { clearAllUserCaches } from "@/lib/userCache";
+import { clearAllUserCaches, readUserCache, writeUserCache } from "@/lib/userCache";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DEFAULT_ONBOARDING,
   loadOnboardingData,
@@ -23,6 +24,7 @@ import {
   getSavedLumifTheme,
 } from "@/components/ThemeInitializer";
 import PetSelector from "@/components/PetSelector";
+import PetPurchaseConfirmDialog from "@/components/PetPurchaseConfirmDialog";
 import {
   DEFAULT_PET_STATE,
   getPetProgress,
@@ -51,9 +53,10 @@ export default function ProfileScreen() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  const [userEmail, setUserEmail] = useState("demo@lumif.local");
-  const [displayName, setDisplayName] = useState("Sobat Lumif");
+  const [userEmail, setUserEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   const [pushNotif, setPushNotif] = useState(true);
   const [emailNotif, setEmailNotif] = useState(false);
@@ -79,6 +82,8 @@ export default function ProfileScreen() {
     DEFAULT_PET_STATE.nickname
   );
   const [petUnlockNotice, setPetUnlockNotice] = useState("");
+  const [pendingBuyPetId, setPendingBuyPetId] = useState<PetSpeciesId | null>(null);
+  const [buySuccess, setBuySuccess] = useState(false);
   const [recoveryPlan, setRecoveryPlan] = useState<OnboardingData | null>(null);
 
   useEffect(() => {
@@ -98,11 +103,33 @@ export default function ProfileScreen() {
 
         if (user?.email) {
           setIsDemoMode(false);
-          setUserEmail(user.email);
           const metaName = user.user_metadata?.display_name as string | undefined;
-          setDisplayName(metaName || user.email.split("@")[0] || "Sobat Lumif");
+          const fallbackName = metaName || user.email.split("@")[0] || "Pengguna";
+
+          const cachedProfile = readUserCache<{
+            email: string;
+            displayName: string;
+            recoveryPlan: OnboardingData | null;
+          }>(user.id, "profile_summary");
+
+          if (cachedProfile) {
+            setUserEmail(cachedProfile.data.email);
+            setDisplayName(cachedProfile.data.displayName);
+            setRecoveryPlan(cachedProfile.data.recoveryPlan);
+            setIsLoadingProfile(false);
+            if (cachedProfile.isFresh) return;
+          }
+
+          setUserEmail(user.email);
+          setDisplayName(fallbackName);
           const loadedPlan = await loadUserRecoveryProfile(supabase);
           setRecoveryPlan(loadedPlan);
+          writeUserCache(user.id, "profile_summary", {
+            email: user.email,
+            displayName: fallbackName,
+            recoveryPlan: loadedPlan,
+          });
+          setIsLoadingProfile(false);
           return;
         }
       } catch {
@@ -116,11 +143,15 @@ export default function ProfileScreen() {
           try {
             const parsed = JSON.parse(demoUser);
             setIsDemoMode(true);
-            if (parsed.email) setUserEmail(parsed.email);
-            if (parsed.name) setDisplayName(parsed.name);
+            setUserEmail(parsed.email || "demo@lumif.local");
+            setDisplayName(parsed.name || "Pengguna Demo");
           } catch {}
+        } else {
+          setUserEmail("Belum login");
+          setDisplayName("Pengguna Tamu");
         }
       }
+      setIsLoadingProfile(false);
     };
 
     fetchUser();
@@ -232,12 +263,20 @@ export default function ProfileScreen() {
   };
 
   const handleUnlockPet = (speciesId: PetSpeciesId) => {
+    setBuySuccess(false);
+    setPendingBuyPetId(speciesId);
+  };
+
+  const handleConfirmUnlockPet = (speciesId: PetSpeciesId) => {
     const res = unlockPetSpecies(speciesId);
     setPetUnlockNotice(res.message);
     if (res.ok) {
       setDraftPetSpecies(res.state.speciesId);
       setDraftPetNickname(res.state.nickname);
       setPetState(res.state);
+      setBuySuccess(true);
+    } else {
+      setPendingBuyPetId(null);
     }
   };
 
@@ -298,6 +337,62 @@ export default function ProfileScreen() {
       />
 
       <main className="flex-1 px-4 pb-[calc(110px+env(safe-area-inset-bottom))] pt-5 md:px-8 md:pb-10">
+        {isLoadingProfile ? (
+          <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 lg:grid-cols-12" aria-busy="true" aria-label="Memuat pengaturan akun">
+            <div className="flex flex-col gap-4 lg:col-span-4">
+              <div className="rounded-2xl bg-[#257B5A] p-5 shadow-sm">
+                <div className="flex items-center gap-3.5">
+                  <Skeleton className="h-12 w-12 shrink-0 rounded-2xl bg-white/25" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-28 bg-white/25" />
+                    <Skeleton className="h-3 w-40 bg-white/20" />
+                    <Skeleton className="h-3 w-24 bg-white/20" />
+                  </div>
+                </div>
+              </div>
+              <Skeleton className="h-12 w-full rounded-xl" />
+              <div className="space-y-3 rounded-2xl border border-border bg-card p-5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            </div>
+            <div className="space-y-6 lg:col-span-8">
+              <div className="space-y-2.5">
+                <Skeleton className="h-3.5 w-16" />
+                <div className="divide-y divide-border/60 rounded-2xl border border-border bg-card">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-3 p-4">
+                      <Skeleton className="h-10 w-10 rounded-xl" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-3 w-48" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                <Skeleton className="h-3.5 w-32" />
+                <div className="divide-y divide-border/60 rounded-2xl border border-border bg-card">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-xl" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-44" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-6 w-11 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 lg:grid-cols-12">
           {/* Profile Summary & Logout */}
           <div className="flex flex-col gap-4 lg:col-span-4">
@@ -403,7 +498,7 @@ export default function ProfileScreen() {
             )}
 
             <section>
-              <h2 className="mb-2.5 font-heading text-xs font-bold tracking-wide text-muted-foreground">
+              <h2 className="mb-2.5 font-heading text-xs font-semibold text-muted-foreground">
                 Akun
               </h2>
 
@@ -487,7 +582,7 @@ export default function ProfileScreen() {
             </section>
 
             <section>
-              <h2 className="mb-2.5 font-heading text-xs font-bold tracking-wide text-muted-foreground">
+              <h2 className="mb-2.5 font-heading text-xs font-semibold text-muted-foreground">
                 Preferensi & Notifikasi
               </h2>
 
@@ -520,6 +615,7 @@ export default function ProfileScreen() {
             </section>
           </div>
         </div>
+        )}
       </main>
 
       {isEditProfileOpen && (
@@ -700,6 +796,17 @@ export default function ProfileScreen() {
           </form>
         </div>
       )}
+
+      <PetPurchaseConfirmDialog
+        petId={pendingBuyPetId}
+        currentCoins={petState.coins}
+        purchasedSuccess={buySuccess}
+        onCancel={() => {
+          setPendingBuyPetId(null);
+          setBuySuccess(false);
+        }}
+        onConfirm={handleConfirmUnlockPet}
+      />
 
       <BottomNav />
     </div>

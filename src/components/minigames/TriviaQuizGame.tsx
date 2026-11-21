@@ -58,7 +58,7 @@ export default function TriviaQuizGame({
             </span>
           </div>
 
-          <span className="font-heading font-bold text-brand-orange-ink">
+          <span className="font-heading font-semibold text-foreground">
             Benar: {correctCount}
           </span>
         </div>
@@ -103,12 +103,12 @@ export default function TriviaQuizGame({
           if (isAnswered) {
             if (isThisCorrect) {
               cardClass =
-                "border-primary bg-primary-light text-foreground shadow-xs";
+                "border-primary bg-primary-light text-foreground";
               badgeClass = "bg-primary text-primary-foreground border border-primary";
             } else if (isThisSelected) {
               cardClass =
-                "border-[#FF8200] bg-[#FFF4E8] dark:bg-orange-950/35 text-foreground";
-              badgeClass = "bg-[#FF8200] text-white border border-[#FF8200]";
+                "border-border bg-muted/70 text-foreground";
+              badgeClass = "bg-foreground/15 text-foreground border border-border";
             } else {
               cardClass = "border-border/60 bg-muted/40 text-muted-foreground opacity-75";
             }
@@ -140,7 +140,7 @@ export default function TriviaQuizGame({
               )}
               {isAnswered && isThisSelected && !isThisCorrect && (
                 <XCircle
-                  className="h-5 w-5 shrink-0 text-[#FF8200]"
+                  className="h-5 w-5 shrink-0 text-muted-foreground"
                   aria-hidden="true"
                 />
               )}
@@ -158,7 +158,7 @@ export default function TriviaQuizGame({
               aria-hidden="true"
             />
             <div>
-              <p className="font-heading text-xs font-bold uppercase tracking-wide text-primary">
+              <p className="font-heading text-xs font-bold text-primary">
                 {selectedIdx === currentQuestion.correctIndex
                   ? "Tepat sekali · Fakta Singkat"
                   : "Jawaban Kurang Tepat · Fakta Singkat"}

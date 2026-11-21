@@ -143,7 +143,7 @@ function SectionHeader({
       </div>
 
       {rightLabel && (
-        <p className="rounded-full bg-[#FFF3DF] px-2.5 py-1 text-[11px] font-bold text-brand-orange-ink dark:bg-amber-950/50">
+        <p className="text-xs font-semibold text-muted-foreground">
           {rightLabel}
         </p>
       )}
@@ -319,7 +319,7 @@ export function ModuleProgressChart({ data }: { data: ModuleDatum[] }) {
         rightLabel={`${completedModules}/${data.length} selesai`}
       />
 
-      <div className="space-y-2.5">
+      <div className="max-h-[340px] space-y-2.5 overflow-y-auto pr-1">
         {data.map((item) => {
           const isSelected = selectedModule?.id === item.id;
 

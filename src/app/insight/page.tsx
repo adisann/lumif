@@ -12,13 +12,14 @@ import { createClient } from "@/lib/supabase/client";
 import { MODULES_DATA } from "@/lib/modulesData";
 import { loadOnboardingData, TRIGGER_LABELS } from "@/lib/onboarding";
 import { readUserCache, writeUserCache } from "@/lib/userCache";
+import StreakFlame from "@/components/StreakFlame";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle,
   BarChart3,
   Check,
   ChevronLeft,
   ChevronRight,
-  Flame,
   Lightbulb,
   Lock,
   TrendingUp,
@@ -381,10 +382,13 @@ function buildCheckInSeries(
 
 const statusStyle: Record<DayStatus, string> = {
   done: "bg-[#257B5A] text-white border-[#257B5A]",
-  today: "bg-[#EDBF45] text-[#071013] border-[#EDBF45]",
+  today: "bg-[#FFF8DE] text-[#071013] border-[#EDBF45]",
   missed: "bg-slate-600 text-white border-slate-600",
   locked: "bg-muted text-muted-foreground border-border",
 };
+
+const litTodayStyle =
+  "bg-gradient-to-b from-[#FFE68C] via-[#EDBF45] to-[#FF9E2C] text-[#071013] border-[#FF8200] animate-streak-card-glow";
 
 const statusLabel: Record<DayStatus, string> = {
   done: "Tercatat",
@@ -428,23 +432,23 @@ function WeeklyStreakTracker({
             Streak Mingguan
           </h2>
 
-          <div className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
-            <Flame className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-            <span className="font-heading text-xs font-bold">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <StreakFlame
+              active={activeDaysCount > 0}
+              size="sm"
+              showSparks={activeDaysCount > 0}
+            />
+            <span className="font-heading">
               {activeDaysCount}/{Math.max(1, elapsedDays)} hari aktif
             </span>
           </div>
         </div>
 
-        <span
-          className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
-            isAuthenticated
-              ? "bg-primary-light text-primary"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          {isAuthenticated ? "Data Akun Real-Time" : "Mode Demo Offline"}
-        </span>
+        {!isAuthenticated && (
+          <span className="text-xs font-medium text-muted-foreground">
+            Mode Demo Offline
+          </span>
+        )}
       </div>
 
       <div className="rounded-3xl border border-border bg-card p-5 shadow-xs">
@@ -490,6 +494,7 @@ function WeeklyStreakTracker({
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
           {currentWeek.days.map((item) => {
             const isSelected = selectedDay?.dateKey === item.dateKey;
+            const isLitToday = item.status === "today" && item.summary === "Aktif";
 
             return (
               <button
@@ -498,8 +503,8 @@ function WeeklyStreakTracker({
                 onClick={() => setSelectedDateKey(item.dateKey)}
                 aria-pressed={isSelected}
                 aria-label={`${item.day} ${item.date} ${item.monthShort}, ${statusLabel[item.status]}`}
-                className={`flex min-h-[82px] flex-col items-center justify-between rounded-2xl border p-2 transition ${
-                  statusStyle[item.status]
+                className={`relative flex min-h-[82px] flex-col items-center justify-between rounded-2xl border p-2 transition ${
+                  isLitToday ? litTodayStyle : statusStyle[item.status]
                 } ${isSelected ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : ""}`}
               >
                 <span className="font-heading text-[10px] font-bold uppercase leading-none">
@@ -510,12 +515,22 @@ function WeeklyStreakTracker({
                   {item.date}
                 </span>
 
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/10">
+                <span
+                  className={`flex h-7 w-7 items-center justify-center rounded-full ${
+                    isLitToday
+                      ? "bg-white/75 shadow-xs"
+                      : "bg-black/10"
+                  }`}
+                >
                   {item.status === "done" && (
                     <Check className="h-3.5 w-3.5 stroke-[2.5]" aria-hidden="true" />
                   )}
                   {item.status === "today" && (
-                    <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+                    <StreakFlame
+                      active={isLitToday}
+                      size="sm"
+                      showSparks={isLitToday}
+                    />
                   )}
                   {item.status === "missed" && (
                     <span className="text-xs font-bold" aria-hidden="true">
@@ -533,7 +548,7 @@ function WeeklyStreakTracker({
 
         {selectedDay && (
           <div className="mt-4 rounded-2xl bg-surface-soft p-4">
-            <div className="mb-2.5 flex items-center justify-between gap-2">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-heading text-sm font-bold text-foreground">
                   {selectedDay.day}, {selectedDay.date} {selectedDay.monthShort}
@@ -678,21 +693,18 @@ function FullInsightPanel({ bundle }: { bundle: InsightBundle }) {
 
 export default function InsightScreen() {
   const supabase = useMemo(() => createClient(), []);
+  const [isLoading, setIsLoading] = useState(true);
   const [showFullInsight, setShowFullInsight] = useState(true);
   const [moduleData, setModuleData] = useState<ModuleDatum[]>([]);
-  const [bundle, setBundle] = useState<InsightBundle>(() => {
-    const now = new Date();
-    const { weeks, routineSeries } = computeWeeksAndRoutines(now, [], [], false);
-    return {
-      isAuthenticated: false,
-      weeks,
-      checkInSeries: buildCheckInSeries([], false, now),
-      routineSeries,
-      topTriggers: [],
-      totalCheckins: 0,
-      avgMood: null,
-      avgUrge: null,
-    };
+  const [bundle, setBundle] = useState<InsightBundle>({
+    isAuthenticated: false,
+    weeks: [],
+    checkInSeries: [],
+    routineSeries: [],
+    topTriggers: [],
+    totalCheckins: 0,
+    avgMood: null,
+    avgUrge: null,
   });
 
   const loadInsights = useCallback(async () => {
@@ -716,12 +728,14 @@ export default function InsightScreen() {
           avgMood: null,
           avgUrge: null,
         });
+        setIsLoading(false);
         return;
       }
 
       const cached = readUserCache<InsightBundle>(user.id, "insight_bundle", 60_000);
       if (cached) {
         setBundle(cached.data);
+        setIsLoading(false);
         if (cached.isFresh) return;
       }
 
@@ -792,8 +806,9 @@ export default function InsightScreen() {
 
       writeUserCache(user.id, "insight_bundle", nextBundle);
       setBundle(nextBundle);
+      setIsLoading(false);
     } catch {
-      // Keep current rendered fallback gracefully
+      setIsLoading(false);
     }
   }, [supabase]);
 
@@ -819,6 +834,55 @@ export default function InsightScreen() {
       />
 
       <main className="flex-1 px-4 pb-[calc(110px+env(safe-area-inset-bottom))] pt-5 md:px-8 md:pb-10">
+        {isLoading ? (
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-6" aria-busy="true" aria-label="Memuat statistik insight">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+              <div className="space-y-3 xl:col-span-5">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-44" />
+                  <Skeleton className="h-5 w-28 rounded-md" />
+                </div>
+                <div className="rounded-3xl border border-border bg-card p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-11 w-11 rounded-xl" />
+                    <div className="space-y-1.5 text-center">
+                      <Skeleton className="mx-auto h-4 w-24" />
+                      <Skeleton className="mx-auto h-3 w-32" />
+                    </div>
+                    <Skeleton className="h-11 w-11 rounded-xl" />
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                      <Skeleton key={d} className="h-[82px] w-full rounded-2xl" />
+                    ))}
+                  </div>
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </div>
+              </div>
+              <div className="space-y-4 xl:col-span-7">
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3].map((t) => (
+                    <Skeleton key={t} className="h-11 w-full rounded-2xl" />
+                  ))}
+                </div>
+                <div className="rounded-3xl border border-border bg-card p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-10 w-44 rounded-xl" />
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                  </div>
+                  <Skeleton className="h-[220px] w-full rounded-2xl" />
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                </div>
+              </div>
+            </div>
+            <Skeleton className="h-[60px] w-full rounded-2xl" />
+            <div className="grid grid-cols-1 gap-3 rounded-3xl border border-border bg-card p-6 md:grid-cols-2">
+              {[1, 2, 3, 4].map((c) => (
+                <Skeleton key={c} className="h-28 w-full rounded-2xl" />
+              ))}
+            </div>
+          </div>
+        ) : (
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <div className="xl:col-span-5">
@@ -865,6 +929,7 @@ export default function InsightScreen() {
 
           {showFullInsight && <FullInsightPanel bundle={bundle} />}
         </div>
+        )}
       </main>
 
       <BottomNav />

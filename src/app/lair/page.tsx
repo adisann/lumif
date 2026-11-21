@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
+import PetPurchaseConfirmDialog from "@/components/PetPurchaseConfirmDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   careForPet,
   DEFAULT_PET_STATE,
@@ -39,6 +41,7 @@ const LumifMascot3D = dynamic(() => import("@/components/LumifMascot3D"), {
 
 export default function PetLairPage() {
   const [petState, setPetState] = useState<PetState>(DEFAULT_PET_STATE);
+  const [isLoadingPet, setIsLoadingPet] = useState(true);
   const [tab, setTab] = useState<"lair" | "shop">("lair");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [previewStage, setPreviewStage] = useState<PetStage | null>(null);
@@ -46,6 +49,8 @@ export default function PetLairPage() {
   const [statusNotice, setStatusNotice] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftNickname, setDraftNickname] = useState("");
+  const [pendingBuyPetId, setPendingBuyPetId] = useState<PetSpeciesId | null>(null);
+  const [buySuccess, setBuySuccess] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -54,6 +59,7 @@ export default function PetLairPage() {
       setPetState(loaded);
       const activeIdx = loaded.unlockedSpecies.indexOf(loaded.speciesId);
       if (activeIdx >= 0) setCurrentIndex(activeIdx);
+      setIsLoadingPet(false);
     });
     const unsub = subscribePetState(() => {
       setPetState(loadPetState());
@@ -141,14 +147,22 @@ export default function PetLairPage() {
     setStatusNotice(`Nama pet diperbarui menjadi ${draftNickname.trim() || viewedSpecies.defaultNickname}.`);
   };
 
-  const handleUnlock = (id: PetSpeciesId) => {
+  const handleRequestUnlock = (id: PetSpeciesId) => {
+    setBuySuccess(false);
+    setPendingBuyPetId(id);
+  };
+
+  const handleConfirmUnlock = (id: PetSpeciesId) => {
     const res = unlockPetSpecies(id);
     setStatusNotice(res.message);
     if (res.ok) {
+      setPetState(res.state);
       const nextIdx = res.state.unlockedSpecies.indexOf(id);
       if (nextIdx >= 0) setCurrentIndex(nextIdx);
       setPreviewStage(null);
-      setTab("lair");
+      setBuySuccess(true);
+    } else {
+      setPendingBuyPetId(null);
     }
   };
 
@@ -162,14 +176,38 @@ export default function PetLairPage() {
         title="Lair Pendamping"
         subtitle="Lihat kondisi dan level pet satu per satu"
         rightAction={
-          <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 px-3 py-1.5 text-xs font-bold text-[#0F172A] dark:bg-amber-950/60 dark:text-amber-300">
-            <Coins className="h-4 w-4" aria-hidden="true" />
-            <span>{petState.coins} Koin</span>
-          </div>
+          isLoadingPet ? (
+            <Skeleton className="h-7 w-20 rounded-xl" />
+          ) : (
+            <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 px-3 py-1.5 text-xs font-bold text-[#0F172A] dark:bg-amber-950/60 dark:text-amber-300">
+              <Coins className="h-4 w-4" aria-hidden="true" />
+              <span>{petState.coins} Koin</span>
+            </div>
+          )
         }
       />
 
       <main className="flex-1 px-4 pb-[calc(110px+env(safe-area-inset-bottom))] pt-5 md:px-8 md:pb-10">
+        {isLoadingPet ? (
+          <div className="mx-auto w-full max-w-5xl space-y-5" aria-busy="true" aria-label="Memuat lair pendamping">
+            <div className="flex gap-2">
+              <Skeleton className="h-11 w-32 rounded-xl" />
+              <Skeleton className="h-11 w-36 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-1 gap-6 rounded-3xl border border-border bg-card p-5 shadow-xs md:p-7 lg:grid-cols-12">
+              <div className="space-y-4 lg:col-span-7">
+                <Skeleton className="h-9 w-full rounded-xl" />
+                <Skeleton className="h-72 w-full rounded-2xl" />
+              </div>
+              <div className="space-y-4 lg:col-span-5">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-24 w-full rounded-2xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="mx-auto w-full max-w-5xl space-y-5">
           {/* Tabs */}
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -506,7 +544,7 @@ export default function PetLairPage() {
                         <button
                           type="button"
                           disabled={!canAfford}
-                          onClick={() => handleUnlock(pet.id)}
+                          onClick={() => handleRequestUnlock(pet.id)}
                           className={`mt-4 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 font-heading text-xs font-bold transition ${
                             canAfford
                               ? "bg-primary text-primary-foreground hover:bg-primary-dark"
@@ -528,7 +566,25 @@ export default function PetLairPage() {
             </div>
           )}
         </div>
+        )}
       </main>
+
+      <PetPurchaseConfirmDialog
+        petId={pendingBuyPetId}
+        currentCoins={petState.coins}
+        purchasedSuccess={buySuccess}
+        onCancel={() => {
+          setPendingBuyPetId(null);
+          setBuySuccess(false);
+        }}
+        onConfirm={handleConfirmUnlock}
+        onDoneAfterPurchase={() => {
+          setPendingBuyPetId(null);
+          setBuySuccess(false);
+          setTab("lair");
+        }}
+        doneButtonLabel="Lihat di Lair Saya"
+      />
 
       <BottomNav />
     </div>

@@ -46,18 +46,18 @@ export const MINI_GAME_GROUPS: {
 }[] = [
   {
     key: "crisis",
-    title: "Butuh Jeda Cepat & Napas",
-    subtitle: "Cocok saat dorongan datang mendadak atau pikiran terasa penuh.",
+    title: "Jeda Cepat & Napas",
+    subtitle: "Cocok saat dorongan muncul mendadak atau pikiran terasa penuh.",
   },
   {
     key: "sensory",
-    title: "Tenangkan Lewat Sentuhan",
-    subtitle: "Gerakan lambat dan respons visual lembut tanpa target waktu.",
+    title: "Sentuhan & Visual",
+    subtitle: "Interaksi lambat dan visual tenang tanpa batas waktu.",
   },
   {
     key: "focus",
-    title: "Alihkan Fokus Ringan",
-    subtitle: "Aktivitas terstruktur singkat untuk mengembalikan kendali perhatian.",
+    title: "Fokus Ringan",
+    subtitle: "Aktivitas singkat terstruktur untuk mengalihkan perhatian.",
   },
 ];
 

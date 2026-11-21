@@ -50,8 +50,8 @@ export default function PetSelector({
         </div>
 
         {allowUnlock && (
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-[#0F172A] dark:bg-amber-950/60 dark:text-amber-300">
-            <Coins className="h-3.5 w-3.5" aria-hidden="true" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <Coins className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             <span>{coins} Koin</span>
           </div>
         )}

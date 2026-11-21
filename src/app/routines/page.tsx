@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { awardPetReward } from "@/lib/pets";
 import {
   ArrowLeft,
@@ -142,8 +150,9 @@ const BOARD_COLUMNS: {
 ];
 
 export default function RoutinesScreen() {
-  const [routines, setRoutines] = useState<Routine[]>(DEFAULT_ROUTINES);
+  const [routines, setRoutines] = useState<Routine[]>([]);
   const [lists, setLists] = useState<string[]>(DEFAULT_LISTS);
+  const [isLoadingRoutines, setIsLoadingRoutines] = useState(true);
   const [selectedList, setSelectedList] = useState<string>("__my_day__");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
@@ -178,7 +187,11 @@ export default function RoutinesScreen() {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setRoutines(parsed.map((item, i) => normalizeRoutine(item, i)));
+          } else {
+            setRoutines(DEFAULT_ROUTINES);
           }
+        } else {
+          setRoutines(DEFAULT_ROUTINES);
         }
         const savedLists = window.localStorage.getItem(CUSTOM_LISTS_KEY);
         if (savedLists) {
@@ -188,7 +201,9 @@ export default function RoutinesScreen() {
           }
         }
       } catch {
-        // Keep defaults if localStorage JSON is malformed
+        setRoutines(DEFAULT_ROUTINES);
+      } finally {
+        setIsLoadingRoutines(false);
       }
     });
     return () => window.cancelAnimationFrame(raf);
@@ -542,7 +557,7 @@ export default function RoutinesScreen() {
               </div>
 
               <div className="border-t border-border pt-3">
-                <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                <p className="mb-1.5 px-3 text-xs font-semibold text-muted-foreground">
                   Daftar Kategori
                 </p>
                 <div className="space-y-1">
@@ -681,36 +696,57 @@ export default function RoutinesScreen() {
                       placeholder="Tambahkan rutinitas baru lalu tekan Enter..."
                       className="h-9 min-w-[180px] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
-                    <select
+                    <Select
                       value={
                         selectedList.startsWith("__")
                           ? newTaskCategory
                           : selectedList
                       }
-                      onChange={(e) => setNewTaskCategory(e.target.value)}
-                      aria-label="Pilih kategori rutinitas"
-                      className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold text-foreground"
+                      onValueChange={(nextCategory) =>
+                        setNewTaskCategory(nextCategory)
+                      }
                     >
-                      {lists.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                    <select
+                      <SelectTrigger
+                        aria-label="Pilih kategori rutinitas"
+                        className="h-9 min-w-[104px] bg-card"
+                      >
+                        <SelectValue>
+                          {selectedList.startsWith("__")
+                            ? newTaskCategory
+                            : selectedList}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {lists.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
                       value={newTaskTime}
-                      onChange={(e) => setNewTaskTime(e.target.value as TimeSlot)}
-                      aria-label="Pilih waktu"
-                      className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold text-foreground"
+                      onValueChange={(nextTime) =>
+                        setNewTaskTime(nextTime as TimeSlot)
+                      }
                     >
-                      {(["Pagi", "Siang", "Malam", "Kapan saja"] as TimeSlot[]).map(
-                        (slot) => (
-                          <option key={slot} value={slot}>
-                            {slot}
-                          </option>
-                        )
-                      )}
-                    </select>
+                      <SelectTrigger
+                        aria-label="Pilih waktu"
+                        className="h-9 min-w-[104px] bg-card"
+                      >
+                        <SelectValue>{newTaskTime}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {(["Pagi", "Siang", "Malam", "Kapan saja"] as TimeSlot[]).map(
+                          (slot) => (
+                            <SelectItem key={slot} value={slot}>
+                              {slot}
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
                     <button
                       type="submit"
                       disabled={!newTaskTitle.trim()}
@@ -722,7 +758,22 @@ export default function RoutinesScreen() {
 
                   {/* Active Uncompleted Tasks */}
                   <div className="space-y-1.5">
-                    {activeItems.length === 0 ? (
+                    {isLoadingRoutines ? (
+                      <div className="space-y-2" aria-busy="true" aria-label="Memuat rutinitas harian">
+                        {[1, 2, 3, 4].map((rowIdx) => (
+                          <div
+                            key={rowIdx}
+                            className="flex min-h-[54px] items-center gap-3 rounded-xl border border-border/80 bg-background px-3 py-2"
+                          >
+                            <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
+                            <div className="flex-1 space-y-1.5">
+                              <Skeleton className="h-4 w-48" />
+                              <Skeleton className="h-3 w-28" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : activeItems.length === 0 ? (
                       <p className="rounded-xl bg-surface-soft px-4 py-6 text-center text-xs text-muted-foreground">
                         Tidak ada tugas aktif di daftar ini. Tambahkan rutinitas di atas atau cek bagian Selesai di bawah.
                       </p>
@@ -929,7 +980,7 @@ export default function RoutinesScreen() {
                               className={`h-2.5 w-2.5 rounded-full ${col.accentBar}`}
                               aria-hidden="true"
                             />
-                            <h3 className="font-heading text-xs font-bold uppercase tracking-wide text-foreground">
+                            <h3 className="font-heading text-xs font-bold text-foreground">
                               {col.title}
                             </h3>
                           </div>
@@ -1120,43 +1171,59 @@ export default function RoutinesScreen() {
               </label>
 
               <div className="grid grid-cols-2 gap-3">
-                <label className="block">
+                <div className="block">
                   <span className="mb-1 block text-xs font-semibold text-muted-foreground">
                     Kategori
                   </span>
-                  <select
+                  <Select
                     value={detailRoutine.category}
-                    onChange={(e) => updateDetail({ category: e.target.value })}
-                    className="h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold text-foreground"
+                    onValueChange={(nextCat) =>
+                      updateDetail({ category: nextCat })
+                    }
                   >
-                    {lists.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <SelectTrigger
+                      aria-label="Pilih kategori tugas"
+                      className="h-10 w-full bg-background"
+                    >
+                      <SelectValue>{detailRoutine.category}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lists.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <label className="block">
+                <div className="block">
                   <span className="mb-1 block text-xs font-semibold text-muted-foreground">
                     Waktu
                   </span>
-                  <select
+                  <Select
                     value={detailRoutine.timeSlot}
-                    onChange={(e) =>
-                      updateDetail({ timeSlot: e.target.value as TimeSlot })
+                    onValueChange={(nextSlot) =>
+                      updateDetail({ timeSlot: nextSlot as TimeSlot })
                     }
-                    className="h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold text-foreground"
                   >
-                    {(["Pagi", "Siang", "Malam", "Kapan saja"] as TimeSlot[]).map(
-                      (slot) => (
-                        <option key={slot} value={slot}>
-                          {slot}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </label>
+                    <SelectTrigger
+                      aria-label="Pilih waktu tugas"
+                      className="h-10 w-full bg-background"
+                    >
+                      <SelectValue>{detailRoutine.timeSlot}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(["Pagi", "Siang", "Malam", "Kapan saja"] as TimeSlot[]).map(
+                        (slot) => (
+                          <SelectItem key={slot} value={slot}>
+                            {slot}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Sub-steps (Microsoft To Do "Add step") */}

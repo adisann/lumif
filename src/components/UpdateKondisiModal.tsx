@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { awardPetXp } from "@/lib/pets";
 import { notifyUserDataUpdated } from "@/lib/userCache";
+import StreakFlame from "@/components/StreakFlame";
 
 interface UpdateKondisiModalProps {
   isOpen: boolean;
@@ -326,12 +327,9 @@ export default function UpdateKondisiModal({
         {/* Header */}
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 px-5 pb-4 pt-5 sm:px-6">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
-              Check-in Harian
-            </p>
             <h2
               id="update-kondisi-title"
-              className="mt-0.5 font-heading text-xl font-bold tracking-tight text-foreground"
+              className="font-heading text-xl font-bold tracking-tight text-foreground"
             >
               {isCompleted
                 ? selectedConditionData?.completionTitle ?? "Check-in tersimpan"
@@ -360,8 +358,21 @@ export default function UpdateKondisiModal({
 
         {isCompleted ? (
           <div className="flex flex-col items-start px-5 py-6 sm:px-6 sm:py-7">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light text-primary">
-              <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+            <div className="flex items-center gap-3">
+              {selectedCondition !== "fallen" ? (
+                <div className="animate-streak-pop flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFF3C4] to-[#FFE0A3] ring-1 ring-[#FF8200]/35 shadow-[0_4px_16px_rgba(255,130,0,0.24)]">
+                  <StreakFlame active size="md" showSparks />
+                </div>
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light text-primary">
+                  <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+                </div>
+              )}
+              {selectedCondition !== "fallen" && (
+                <span className="animate-fadeIn font-heading text-xs font-semibold text-foreground">
+                  Api kesadaran hari ini menyala
+                </span>
+              )}
             </div>
 
             <p

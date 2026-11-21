@@ -6,6 +6,7 @@ import UrgeCheckInModal from "@/components/UrgeCheckInModal";
 import { createClient } from "@/lib/supabase/client";
 import { readUserCache, writeUserCache } from "@/lib/userCache";
 import ScreenHeader from "@/components/ScreenHeader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Clock, CheckCircle2, Zap } from "lucide-react";
 
 type UrgeRecord = {
@@ -234,18 +235,20 @@ export default function UrgeLogPage() {
                 Riwayat Catatan
               </h2>
               <div className="flex items-center gap-2">
-                {showingSample ? (
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                    Contoh Offline
-                  </span>
-                ) : isAuthenticated ? (
-                  <span className="rounded-md bg-primary-light px-2 py-0.5 text-[11px] font-semibold text-primary">
-                    Data Akun Real-Time
-                  </span>
-                ) : null}
-                <span className="text-xs text-muted-foreground">
-                  {records.length} tercatat
-                </span>
+                {isLoading ? (
+                  <Skeleton className="h-5 w-28 rounded-md" />
+                ) : (
+                  <>
+                    {showingSample && (
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Contoh Offline ·
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {records.length} tercatat
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -256,12 +259,25 @@ export default function UrgeLogPage() {
             )}
 
             {isLoading ? (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3" aria-busy="true" aria-label="Memuat riwayat catatan hasrat">
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
-                    className="h-24 w-full rounded-2xl border border-border bg-card"
-                  />
+                    className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-7 w-7 rounded-lg" />
+                        <Skeleton className="h-4 w-28" />
+                      </div>
+                      <Skeleton className="h-3.5 w-20" />
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Skeleton className="h-5 w-16 rounded-md" />
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                    </div>
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                  </div>
                 ))}
               </div>
             ) : records.length === 0 ? (
@@ -320,7 +336,7 @@ export default function UrgeLogPage() {
                           {record.triggers.map((trigger) => (
                             <span
                               key={trigger}
-                              className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-foreground"
+                              className="rounded-md bg-surface-soft px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                             >
                               {trigger}
                             </span>

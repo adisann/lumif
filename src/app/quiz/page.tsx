@@ -20,7 +20,7 @@ const QUESTIONS: Question[] = [
       {
         label: "Saat lelah atau larut malam",
         feedback:
-          "Kelelahan menurunkan kendali prefrontal cortex. Tidur teratur adalah perisai utamamu.",
+          "Kelelahan menurunkan fokus kendali diri. Tidur cukup membantu menjaganya.",
       },
       {
         label: "Saat merasa bosan tanpa kegiatan",
@@ -67,7 +67,7 @@ const QUESTIONS: Question[] = [
       {
         label: "Mengembalikan fokus, konsentrasi, dan daya ingat",
         feedback:
-          "Sistem reward yang lebih stabil akan membantu ketajaman mental pulih bertahap.",
+          "Pola istirahat yang lebih terjaga membantu ketajaman fokus pulih bertahap.",
       },
       {
         label: "Bebas dari rasa bersalah dan cemas",
