@@ -4,11 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   BookOpen,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
-  FlaskConical,
   Gamepad2,
   PauseCircle,
   Play,
@@ -40,6 +48,7 @@ import {
   loadLocalFocusGuardDraft,
   saveLocalFocusGuardDraft,
   sendFocusGuardBridgeCommand,
+  subscribeFocusGuardPush,
 } from "@/lib/focusGuardClient";
 import { loadOnboardingData, REASON_LABELS } from "@/lib/onboarding";
 
@@ -57,8 +66,9 @@ export default function FocusGuardPage() {
   const [domainInput, setDomainInput] = useState("");
   const [keywordInput, setKeywordInput] = useState("");
   const [allowInput, setAllowInput] = useState("");
-  const [simUrl, setSimUrl] = useState("https://search.brave.com/search?q=cara+pemulihan+porn");
   const [showInstallGuide, setShowInstallGuide] = useState(false);
+  const [showRuleTester, setShowRuleTester] = useState(false);
+  const [simUrl, setSimUrl] = useState("https://example.com");
 
   const checkBridge = useCallback(async () => {
     setIsCheckingExt(true);
@@ -66,9 +76,9 @@ export default function FocusGuardPage() {
     setIsConnected(res.connected);
     if (res.connected && res.state) {
       setExtSnapshot(res.state);
-      // Merge extension authoritative state into local draft
       saveLocalFocusGuardDraft(res.state.config);
       setConfig(res.state.config);
+      setShowInstallGuide(false);
     } else {
       setExtSnapshot(null);
       const localDraft = loadLocalFocusGuardDraft();
@@ -85,7 +95,23 @@ export default function FocusGuardPage() {
     const raf = window.requestAnimationFrame(() => {
       void checkBridge();
     });
-    return () => window.cancelAnimationFrame(raf);
+    const unsubPush = subscribeFocusGuardPush((pushedState) => {
+      setIsConnected(true);
+      setIsCheckingExt(false);
+      setExtSnapshot(pushedState);
+      saveLocalFocusGuardDraft(pushedState.config);
+      setConfig(pushedState.config);
+      setShowInstallGuide(false);
+    });
+    const onFocus = () => {
+      void checkBridge();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      unsubPush();
+      window.removeEventListener("focus", onFocus);
+    };
   }, [checkBridge]);
 
   const commitConfig = async (next: FocusGuardConfig, successText?: string) => {
@@ -104,12 +130,10 @@ export default function FocusGuardPage() {
       setConfig(res.state.config);
       saveLocalFocusGuardDraft(res.state.config);
       if (successText) {
-        setStatusMessage(`${successText} (Tersinkron ke extension)`);
+        setStatusMessage(successText);
       }
     } else if (successText) {
-      setStatusMessage(
-        `${successText} (Disimpan di pratinjau lokal; buka atau pasang extension untuk mengaktifkan proteksi browser)`
-      );
+      setStatusMessage(`${successText} Aturan tersimpan di perangkat ini.`);
     }
   };
 
@@ -122,7 +146,7 @@ export default function FocusGuardPage() {
         enabled: nextEnabled,
         pauseUntil: null,
       },
-      nextEnabled ? "Focus Guard diaktifkan." : "Focus Guard dimatikan."
+      nextEnabled ? "Proteksi diaktifkan." : "Proteksi dimatikan."
     );
   };
 
@@ -136,7 +160,7 @@ export default function FocusGuardPage() {
         setExtSnapshot(res.state);
         setConfig(res.state.config);
         saveLocalFocusGuardDraft(res.state.config);
-        setStatusMessage("Proteksi dijeda sementara selama 10 menit.");
+        setStatusMessage("Dijeda selama 10 menit.");
         return;
       }
     }
@@ -150,16 +174,14 @@ export default function FocusGuardPage() {
     e.preventDefault();
     const clean = normalizeDomainInput(domainInput);
     if (!clean) {
-      setErrorMessage(
-        "Masukkan nama domain yang valid (mis. example.com), bukan IP lokal atau URL sistem browser."
-      );
+      setErrorMessage("Masukkan nama situs yang valid, misalnya reddit.com.");
       return;
     }
     setDomainInput("");
     const nextDomains = Array.from(new Set([...config.blockedDomains, clean]));
     await commitConfig(
       { ...config, blockedDomains: nextDomains },
-      `Domain ${clean} ditambahkan.`
+      `Situs ${clean} ditambahkan.`
     );
   };
 
@@ -167,9 +189,7 @@ export default function FocusGuardPage() {
     e.preventDefault();
     const clean = normalizeKeywordInput(keywordInput);
     if (!clean) {
-      setErrorMessage(
-        "Kata kunci harus 2 hingga 48 karakter tanpa simbol regex (<, >, *, +, dll)."
-      );
+      setErrorMessage("Kata kunci harus 2 hingga 48 karakter tanpa simbol khusus.");
       return;
     }
     setKeywordInput("");
@@ -184,14 +204,14 @@ export default function FocusGuardPage() {
     e.preventDefault();
     const clean = normalizeDomainInput(allowInput);
     if (!clean) {
-      setErrorMessage("Masukkan domain pengecualian yang valid.");
+      setErrorMessage("Masukkan nama situs pengecualian yang valid.");
       return;
     }
     setAllowInput("");
     const nextAllow = Array.from(new Set([...config.allowlistDomains, clean]));
     await commitConfig(
       { ...config, allowlistDomains: nextAllow },
-      `${clean} ditambahkan ke allowlist.`
+      `${clean} dikecualikan.`
     );
   };
 
@@ -202,7 +222,7 @@ export default function FocusGuardPage() {
       : [...config.enabledCategories, presetId];
     await commitConfig(
       { ...config, enabledCategories: nextCats },
-      active ? "Preset dinonaktifkan." : "Preset diterapkan."
+      active ? "Paket dinonaktifkan." : "Paket diaktifkan."
     );
   };
 
@@ -215,19 +235,18 @@ export default function FocusGuardPage() {
       if (res.connected && res.state) {
         setExtSnapshot(res.state);
         setConfig(res.state.config);
-        setStatusMessage("Seluruh aturan dan statistik lokal Focus Guard sudah dihapus.");
+        setStatusMessage("Pengaturan Focus Guard direset ke awal.");
         return;
       }
     }
     const fresh = loadLocalFocusGuardDraft();
     setConfig(fresh);
-    setStatusMessage("Pengaturan pratinjau lokal Focus Guard dikembalikan ke bawaan.");
+    setStatusMessage("Pengaturan Focus Guard direset ke awal.");
   };
 
   const { domains: effectiveDomains, keywords: effectiveKeywords } =
     getEffectiveRules(config);
 
-  // Local test simulator uses a preview-enabled copy so user can inspect rule logic safely
   const simResult: EvaluationResult = evaluateNavigationUrl(simUrl, {
     ...config,
     enabled: true,
@@ -235,47 +254,45 @@ export default function FocusGuardPage() {
     schedule: { ...config.schedule, enabled: false },
   });
 
-  // Truthful status calculation (never falsely claim "Dilindungi" when extension missing/inactive)
-  let statusBadge = "Extension Belum Terdeteksi";
-  let statusTitle = "Pratinjau Konfigurasi Lokal (Extension Belum Terhubung)";
+  // Single concise status presentation with zero duplicate labels
+  let statusBadge = "Ekstensi Belum Terpasang";
+  let statusTitle = "Pasang Ekstensi Browser untuk Memulai";
   let statusDesc =
-    "Website Lumif tidak bisa memblokir situs lain sendirian. Pasang extension Lumif Focus Guard di Chrome, Brave Desktop, atau Firefox Android untuk proteksi nyata di browser.";
+    "Atur situs atau kata kunci pilihanmu di bawah, lalu hubungkan ekstensi Lumif agar layar jeda aktif saat kamu berselancar.";
   let statusTone: "active" | "paused" | "offline" = "offline";
 
   if (isConnected && extSnapshot) {
     if (extSnapshot.isEffectivelyActive) {
-      statusBadge = "Terhubung · Proteksi Aktif";
-      statusTitle = "Lumif Focus Guard Aktif Melindungi Browser Ini";
-      statusDesc = `Menjalankan ${effectiveDomains.length} aturan domain dan ${effectiveKeywords.length} filter kata kunci pencarian secara lokal.`;
+      statusBadge = "Proteksi Aktif";
+      statusTitle = "Focus Guard Sedang Menjagamu";
+      statusDesc = `Menjalankan ${effectiveDomains.length} situs dibatasi dan ${effectiveKeywords.length} filter pencarian di browser ini.`;
       statusTone = "active";
     } else if (extSnapshot.inactiveReason === "missing_host_permission") {
       statusBadge = "Perlu Izin Browser";
-      statusTitle = "Extension Terhubung, Namun Izin Pengalihan Belum Diberikan";
+      statusTitle = "Berikan Izin Halaman Jeda";
       statusDesc =
-        "Buka popup extension Lumif Focus Guard dan ketuk 'Izinkan Pengalihan Intervensi' agar layar intervensi dapat muncul.";
+        "Klik ikon Lumif di toolbar browser, lalu tekan 'Izinkan Pengalihan' agar halaman jeda bisa muncul.";
       statusTone = "paused";
     } else if (extSnapshot.inactiveReason === "paused") {
-      statusBadge = "Dijeda Sementara";
-      statusTitle = "Proteksi Sedang Dijeda";
-      statusDesc =
-        "Aturanmu tetap tersimpan dan akan otomatis menyala kembali setelah jeda selesai.";
+      statusBadge = "Dijeda";
+      statusTitle = "Proteksi Dijeda Sementara";
+      statusDesc = "Akan aktif kembali otomatis saat waktu jeda berakhir.";
       statusTone = "paused";
     } else if (extSnapshot.inactiveReason === "outside_schedule") {
-      statusBadge = "Di Luar Jadwal";
-      statusTitle = "Menunggu Jam Jadwal Fokus Berikutnya";
-      statusDesc = `Jadwal aktif: ${String(config.schedule.startHour).padStart(2, "0")}:00 sampai ${String(config.schedule.endHour).padStart(2, "0")}:00.`;
+      statusBadge = "Menunggu Jadwal";
+      statusTitle = "Di Luar Jam Fokus";
+      statusDesc = `Otomatis aktif pukul ${String(config.schedule.startHour).padStart(2, "0")}:00 sampai ${String(config.schedule.endHour).padStart(2, "0")}:00.`;
       statusTone = "paused";
     } else if (extSnapshot.inactiveReason === "no_rules") {
-      statusBadge = "Belum Ada Aturan";
-      statusTitle = "Extension Terhubung, Belum Ada Domain atau Kata Kunci";
+      statusBadge = "Ekstensi Terhubung";
+      statusTitle = "Tambahkan Situs atau Kata Kunci";
       statusDesc =
-        "Tambahkan minimal satu domain atau kata kunci, atau pilih preset uji aman di bawah.";
+        "Pilih minimal satu paket atau tambahkan situs di bawah agar proteksi mulai bekerja.";
       statusTone = "paused";
     } else {
-      statusBadge = "Extension Nonaktif";
-      statusTitle = "Focus Guard Sedang Dimatikan";
-      statusDesc =
-        "Aktifkan kapan saja saat kamu membutuhkan batas tambahan saat berselancar.";
+      statusBadge = "Ekstensi Terhubung";
+      statusTitle = "Proteksi Sedang Nonaktif";
+      statusDesc = "Nyalakan kapan saja saat kamu membutuhkan batas fokus tambahan.";
       statusTone = "offline";
     }
   }
@@ -284,7 +301,7 @@ export default function FocusGuardPage() {
     <div className="lumif-with-nav relative flex min-h-dvh flex-col bg-surface-soft font-sans text-foreground">
       <ScreenHeader
         title="Lumif Focus Guard"
-        subtitle="Intervensi digital berbasis CBT & ACT yang berjalan lokal di browsermu"
+        subtitle="Bantu beri jeda sadar saat membuka situs atau pencarian pemicu"
         rightAction={
           <button
             type="button"
@@ -296,7 +313,7 @@ export default function FocusGuardPage() {
               className={`h-3.5 w-3.5 ${isCheckingExt ? "animate-spin" : ""}`}
               aria-hidden="true"
             />
-            <span className="hidden sm:inline">Cek Extension</span>
+            <span className="hidden sm:inline">Periksa Koneksi</span>
           </button>
         }
       />
@@ -336,7 +353,7 @@ export default function FocusGuardPage() {
           </div>
         )}
 
-        {/* Truthful Protection Status Hero */}
+        {/* Protection Status & Quick Access Hero */}
         <section
           className={`rounded-3xl border p-6 shadow-xs ${
             statusTone === "active"
@@ -346,141 +363,156 @@ export default function FocusGuardPage() {
               : "border-border bg-card text-card-foreground"
           }`}
         >
-          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-black/10 px-3 py-1 text-xs font-bold dark:bg-white/10">
-                {statusTone === "active" ? (
-                  <ShieldCheck className="h-4 w-4 text-[#EDBF45]" aria-hidden="true" />
-                ) : statusTone === "paused" ? (
-                  <ShieldAlert className="h-4 w-4 text-brand-orange-ink" aria-hidden="true" />
-                ) : (
-                  <Shield className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                )}
-                <span>{statusBadge}</span>
+          {isCheckingExt ? (
+            <div className="space-y-3" aria-busy="true" aria-label="Memeriksa ekstensi browser">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-7 w-72 rounded-xl" />
+              <Skeleton className="h-4 w-full max-w-lg" />
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                <div className="space-y-2">
+                  <p
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      statusTone === "active"
+                        ? "text-white/90"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {statusTone === "active" ? (
+                      <ShieldCheck className="h-4 w-4 text-white" aria-hidden="true" />
+                    ) : statusTone === "paused" ? (
+                      <ShieldAlert className="h-4 w-4 text-brand-orange-ink" aria-hidden="true" />
+                    ) : (
+                      <Shield className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    )}
+                    <span>{statusBadge}</span>
+                  </p>
+
+                  <h2 className="font-heading text-xl font-bold leading-snug sm:text-2xl">
+                    {statusTitle}
+                  </h2>
+                  <p
+                    className={`max-w-2xl text-xs leading-relaxed sm:text-sm ${
+                      statusTone === "active"
+                        ? "text-white/90"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {statusDesc}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap gap-2.5">
+                  {isConnected ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleMain()}
+                        className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-5 font-heading text-xs font-bold transition sm:text-sm ${
+                          statusTone === "active"
+                            ? "bg-white text-[#257B5A] hover:bg-white/90"
+                            : "bg-primary text-primary-foreground hover:bg-primary-dark"
+                        }`}
+                      >
+                        <Play className="h-4 w-4" aria-hidden="true" />
+                        <span>
+                          {config.enabled && extSnapshot?.inactiveReason !== "paused"
+                            ? "Matikan"
+                            : "Aktifkan Proteksi"}
+                        </span>
+                      </button>
+
+                      {config.enabled && extSnapshot?.inactiveReason !== "paused" && (
+                        <button
+                          type="button"
+                          onClick={() => void handlePause10()}
+                          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 font-heading text-xs font-bold transition sm:text-sm ${
+                            statusTone === "active"
+                              ? "border border-white/30 bg-white/15 text-white hover:bg-white/25"
+                              : "border border-border bg-surface-soft text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <PauseCircle className="h-4 w-4" aria-hidden="true" />
+                          <span>Jeda 10 Menit</span>
+                        </button>
+                      )}
+                    </>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowInstallGuide((prev) => !prev)}
+                    className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 font-heading text-xs font-bold transition sm:text-sm ${
+                      !isConnected
+                        ? "bg-primary text-primary-foreground hover:bg-primary-dark"
+                        : statusTone === "active"
+                        ? "border border-white/30 bg-transparent text-white hover:bg-white/10"
+                        : "border border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Smartphone className="h-4 w-4" aria-hidden="true" />
+                    <span>{showInstallGuide ? "Tutup Cara Pasang" : "Cara Pasang Ekstensi"}</span>
+                  </button>
+                </div>
               </div>
 
-              <h2 className="font-heading text-xl font-bold leading-snug sm:text-2xl">
-                {statusTitle}
-              </h2>
-              <p
-                className={`max-w-2xl text-xs leading-relaxed sm:text-sm ${
-                  statusTone === "active"
-                    ? "text-white/90"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {statusDesc}
-              </p>
-            </div>
-
-            <div className="flex shrink-0 flex-wrap gap-2.5">
-              <button
-                type="button"
-                onClick={() => void handleToggleMain()}
-                className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-5 font-heading text-xs font-bold transition sm:text-sm ${
-                  statusTone === "active"
-                    ? "bg-white text-[#257B5A] hover:bg-white/90"
-                    : "bg-primary text-primary-foreground hover:bg-primary-dark"
-                }`}
-              >
-                <Play className="h-4 w-4" aria-hidden="true" />
-                <span>
-                  {config.enabled && extSnapshot?.inactiveReason !== "paused"
-                    ? "Matikan"
-                    : "Aktifkan Proteksi"}
-                </span>
-              </button>
-
-              {config.enabled && extSnapshot?.inactiveReason !== "paused" && (
-                <button
-                  type="button"
-                  onClick={() => void handlePause10()}
-                  className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 font-heading text-xs font-bold transition sm:text-sm ${
+              {(showInstallGuide || !isConnected) && (
+                <div
+                  className={`mt-5 rounded-2xl border p-4 text-xs leading-relaxed ${
                     statusTone === "active"
-                      ? "border border-white/30 bg-white/15 text-white hover:bg-white/25"
-                      : "border border-border bg-surface-soft text-foreground hover:bg-muted"
+                      ? "border-white/20 bg-black/20 text-white/95"
+                      : "border-border bg-surface-soft text-foreground"
                   }`}
                 >
-                  <PauseCircle className="h-4 w-4" aria-hidden="true" />
-                  <span>Jeda 10 Menit</span>
-                </button>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <p className="font-heading text-sm font-bold">
+                        Cara Pasang di Laptop (Chrome / Brave / Edge)
+                      </p>
+                      <ol className="mt-2 list-decimal space-y-1.5 pl-4">
+                        <li>
+                          Buka tab baru lalu masuk ke <code>chrome://extensions</code> atau{" "}
+                          <code>brave://extensions</code>.
+                        </li>
+                        <li>
+                          Aktifkan tombol <strong>Developer mode</strong> di pojok kanan atas.
+                        </li>
+                        <li>
+                          Klik <strong>Load unpacked</strong>, pilih folder{" "}
+                          <code>extension/.output/chrome-mv3</code>, lalu tekan{" "}
+                          <strong>Periksa Koneksi</strong> di halaman ini.
+                        </li>
+                      </ol>
+                    </div>
+
+                    <div>
+                      <p className="font-heading text-sm font-bold">
+                        Pengguna HP Android
+                      </p>
+                      <p className="mt-2 text-muted-foreground">
+                        Browser Chrome dan Brave Android belum mendukung ekstensi pihak ketiga. Untuk memblokir langsung di HP Android, gunakan{" "}
+                        <strong className="text-foreground">Firefox for Android</strong> dengan ekstensi Lumif Focus Guard.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => setShowInstallGuide((prev) => !prev)}
-                className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 font-heading text-xs font-bold transition sm:text-sm ${
-                  statusTone === "active"
-                    ? "border border-white/30 bg-transparent text-white hover:bg-white/10"
-                    : "border border-border bg-card text-foreground hover:bg-muted"
-                }`}
-              >
-                <Smartphone className="h-4 w-4" aria-hidden="true" />
-                <span>{showInstallGuide ? "Tutup Panduan" : "Panduan Brave & Android"}</span>
-              </button>
-            </div>
-          </div>
-
-          {showInstallGuide && (
-            <div
-              className={`mt-5 grid grid-cols-1 gap-4 rounded-2xl border p-4 text-xs leading-relaxed md:grid-cols-2 ${
-                statusTone === "active"
-                  ? "border-white/20 bg-black/20 text-white/95"
-                  : "border-border bg-surface-soft text-foreground"
-              }`}
-            >
-              <div>
-                <p className="font-heading text-sm font-bold">
-                  Laptop: Chrome & Brave Desktop
-                </p>
-                <ol className="mt-2 list-decimal space-y-1 pl-4">
-                  <li>
-                    Buka <code>brave://extensions</code> atau <code>chrome://extensions</code>.
-                  </li>
-                  <li>
-                    Aktifkan <strong>Developer mode</strong> di pojok kanan atas.
-                  </li>
-                  <li>
-                    Klik <strong>Load unpacked</strong> dan pilih folder{" "}
-                    <code>extension/.output/chrome-mv3</code>.
-                  </li>
-                  <li>
-                    Refresh halaman ini dan tekan <strong>Cek Extension</strong>.
-                  </li>
-                </ol>
-              </div>
-
-              <div>
-                <p className="font-heading text-sm font-bold">
-                  Android: Firefox Android & Batasan Brave Android
-                </p>
-                <ul className="mt-2 list-disc space-y-1 pl-4">
-                  <li>
-                    <strong>Brave Android & Chrome Android standar</strong> tidak mendukung pemasangan extension browser apa pun di Android.
-                  </li>
-                  <li>
-                    Untuk proteksi browser nyata di HP Android, pasang build{" "}
-                    <code>extension/.output/firefox-mv3</code> pada{" "}
-                    <strong>Firefox for Android / Nightly</strong> via <code>adb</code> dan{" "}
-                    <code>web-ext run --target=firefox-android</code>.
-                  </li>
-                </ul>
-              </div>
-            </div>
+            </>
           )}
         </section>
 
         {/* Main 2-column Preferences & Tools */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Left 7 columns: Rules & Presets */}
+          {/* Left 7 columns: Presets, Domains & Keywords */}
           <div className="space-y-6 lg:col-span-7">
-            {/* Opt-in Presets */}
             <section className="rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-6">
               <h2 className="font-heading text-base font-bold text-foreground">
-                Paket Proteksi Sukarela
+                Paket Proteksi Pilihan
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Tidak ada pembatasan yang aktif diam-diam. Pilih paket di bawah hanya jika sesuai kebutuhanmu.
+                Pilih paket yang kamu butuhkan saja. Semua bisa dinyalakan atau dimatikan kapan pun.
               </p>
 
               <div className="mt-4 space-y-2.5">
@@ -530,10 +562,10 @@ export default function FocusGuardPage() {
             {/* Blocked Domains */}
             <section className="rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-6">
               <h2 className="font-heading text-base font-bold text-foreground">
-                Daftar Website & Domain yang Dibatasi
+                Situs yang Dibatasi
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Mencakup domain utama dan subdomain secara presisi (mis. <code>x.com</code> tidak memblokir <code>box.com</code>).
+                Otomatis mencakup halaman di dalam situs tersebut.
               </p>
 
               <form onSubmit={handleAddDomain} className="mt-4 flex gap-2">
@@ -541,8 +573,8 @@ export default function FocusGuardPage() {
                   type="text"
                   value={domainInput}
                   onChange={(e) => setDomainInput(e.target.value)}
-                  placeholder="mis. example.com atau reddit.com"
-                  aria-label="Tambah domain dibatasi"
+                  placeholder="Contoh: reddit.com atau tiktok.com"
+                  aria-label="Tambah situs yang dibatasi"
                   className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-surface-soft px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                 />
                 <button
@@ -555,45 +587,60 @@ export default function FocusGuardPage() {
               </form>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                {config.blockedDomains.length === 0 ? (
+                {effectiveDomains.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    Belum ada domain kustom. Aktifkan preset atau tambahkan domain sendiri di atas.
+                    Belum ada situs dibatasi. Pilih paket di atas atau tambahkan sendiri.
                   </p>
                 ) : (
-                  config.blockedDomains.map((dom) => (
-                    <span
-                      key={dom}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-soft px-3 py-1.5 text-xs font-semibold text-foreground"
-                    >
-                      <span>{dom}</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void commitConfig({
-                            ...config,
-                            blockedDomains: config.blockedDomains.filter(
-                              (d) => d !== dom
-                            ),
-                          })
-                        }
-                        aria-label={`Hapus domain ${dom}`}
-                        className="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  <>
+                    {config.blockedDomains.map((dom) => (
+                      <span
+                        key={dom}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-soft px-3 py-1.5 text-xs font-semibold text-foreground"
                       >
-                        <X className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))
+                        <span>{dom}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void commitConfig({
+                              ...config,
+                              blockedDomains: config.blockedDomains.filter(
+                                (d) => d !== dom
+                              ),
+                            })
+                          }
+                          aria-label={`Hapus situs ${dom}`}
+                          className="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </span>
+                    ))}
+                    {effectiveDomains
+                      .filter((dom) => !config.blockedDomains.includes(dom))
+                      .map((presetDom) => (
+                        <span
+                          key={`preset-${presetDom}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-primary/25 bg-primary-light/60 px-3 py-1.5 text-xs font-semibold text-primary"
+                        >
+                          <span>{presetDom}</span>
+                          <span className="text-[10px] font-medium opacity-80">
+                            (paket)
+                          </span>
+                        </span>
+                      ))}
+                  </>
                 )}
               </div>
             </section>
 
-            {/* Search Keyword Filtering */}
+            {/* Search Keyword Filtering & Allowlist */}
             <section className="rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-6">
               <h2 className="font-heading text-base font-bold text-foreground">
-                Filter Kata Kunci Mesin Pencari
+                Kata Kunci Pencarian
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Berjalan lokal pada Google, Brave Search, Bing, DuckDuckGo, Yahoo, Ecosia, Startpage, dan YouTube Search. Pencarian bertopik edukasi atau pemulihan tetap diloloskan.
+                Menyaring pencarian pemicu secara pribadi di browser; topik edukasi dan pemulihan tetap diloloskan.
               </p>
 
               <form onSubmit={handleAddKeyword} className="mt-4 flex gap-2">
@@ -601,7 +648,7 @@ export default function FocusGuardPage() {
                   type="text"
                   value={keywordInput}
                   onChange={(e) => setKeywordInput(e.target.value)}
-                  placeholder="mis. lumiftestblock atau porn"
+                  placeholder="Tambah kata kunci pemicu..."
                   aria-label="Tambah kata kunci pencarian"
                   className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-surface-soft px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                 />
@@ -615,49 +662,64 @@ export default function FocusGuardPage() {
               </form>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                {config.blockedKeywords.length === 0 ? (
+                {effectiveKeywords.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    Belum ada kata kunci kustom yang ditambahkan.
+                    Belum ada kata kunci aktif.
                   </p>
                 ) : (
-                  config.blockedKeywords.map((kw) => (
-                    <span
-                      key={kw}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-soft px-3 py-1.5 text-xs font-semibold text-foreground"
-                    >
-                      <span>{kw}</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void commitConfig({
-                            ...config,
-                            blockedKeywords: config.blockedKeywords.filter(
-                              (k) => k !== kw
-                            ),
-                          })
-                        }
-                        aria-label={`Hapus kata kunci ${kw}`}
-                        className="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  <>
+                    {config.blockedKeywords.map((kw) => (
+                      <span
+                        key={kw}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-soft px-3 py-1.5 text-xs font-semibold text-foreground"
                       >
-                        <X className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))
+                        <span>{kw}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void commitConfig({
+                              ...config,
+                              blockedKeywords: config.blockedKeywords.filter(
+                                (k) => k !== kw
+                              ),
+                            })
+                          }
+                          aria-label={`Hapus kata kunci ${kw}`}
+                          className="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </span>
+                    ))}
+                    {effectiveKeywords
+                      .filter((kw) => !config.blockedKeywords.includes(kw))
+                      .map((presetKw) => (
+                        <span
+                          key={`preset-kw-${presetKw}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-primary/25 bg-primary-light/60 px-3 py-1.5 text-xs font-semibold text-primary"
+                        >
+                          <span>{presetKw}</span>
+                          <span className="text-[10px] font-medium opacity-80">
+                            (paket)
+                          </span>
+                        </span>
+                      ))}
+                  </>
                 )}
               </div>
 
               {/* Allowlist */}
               <div className="mt-6 border-t border-border pt-5">
                 <h3 className="font-heading text-sm font-bold text-foreground">
-                  Allowlist (Pengecualian Domain)
+                  Pengecualian Situs
                 </h3>
                 <form onSubmit={handleAddAllowlist} className="mt-2.5 flex gap-2">
                   <input
                     type="text"
                     value={allowInput}
                     onChange={(e) => setAllowInput(e.target.value)}
-                    placeholder="mis. nih.gov"
-                    aria-label="Tambah domain pengecualian"
+                    placeholder="Contoh: wikipedia.org"
+                    aria-label="Tambah situs pengecualian"
                     className="h-10 min-w-0 flex-1 rounded-xl border border-input bg-surface-soft px-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                   />
                   <button
@@ -697,12 +759,11 @@ export default function FocusGuardPage() {
             </section>
           </div>
 
-          {/* Right 5 columns: Behavior, Simulator, Stats & Existing Recovery Integration */}
+          {/* Right 5 columns: Behavior, Connected Tools & Summary */}
           <div className="space-y-6 lg:col-span-5">
-            {/* Personal Goal, Mode & Schedule */}
             <section className="rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-6">
               <h2 className="font-heading text-base font-bold text-foreground">
-                Perilaku Intervensi & Jadwal
+                Pengaturan Jeda &amp; Jadwal
               </h2>
 
               <div className="mt-4 space-y-4">
@@ -710,8 +771,8 @@ export default function FocusGuardPage() {
                   <span className="mb-1.5 block text-xs font-bold text-foreground">
                     Pengingat Tujuan Pribadi
                   </span>
-                  <input
-                    type="text"
+                  <textarea
+                    rows={2}
                     maxLength={160}
                     value={config.personalGoal}
                     onChange={(e) =>
@@ -721,44 +782,55 @@ export default function FocusGuardPage() {
                       }))
                     }
                     onBlur={() => void commitConfig(config, "Tujuan diperbarui.")}
-                    className="h-11 w-full rounded-xl border border-input bg-surface-soft px-3.5 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
+                    className="w-full resize-none rounded-xl border border-input bg-surface-soft px-3.5 py-2.5 text-xs leading-relaxed font-medium text-foreground focus:border-primary focus:outline-none"
                   />
                 </label>
 
-                <label className="block">
+                <div className="block">
                   <span className="mb-1.5 block text-xs font-bold text-foreground">
-                    Respons saat Situs/Pencarian Dicegat
+                    Saat Situs Dibatasi Dibuka
                   </span>
-                  <select
+                  <Select
                     value={config.interventionMode}
-                    onChange={(e) =>
+                    onValueChange={(nextMode) =>
                       void commitConfig(
                         {
                           ...config,
-                          interventionMode: e.target.value as InterventionMode,
+                          interventionMode: nextMode as InterventionMode,
                         },
                         "Mode intervensi diperbarui."
                       )
                     }
-                    className="h-11 w-full rounded-xl border border-input bg-surface-soft px-3 text-xs font-semibold text-foreground focus:border-primary focus:outline-none"
                   >
-                    <option value="supportive_pause">
-                      Tampilkan Jeda Sadar 10 Detik & Pengingat Tujuan
-                    </option>
-                    <option value="breathing_first">
-                      Langsung Buka Panduan Napas 4-4-6
-                    </option>
-                  </select>
-                </label>
+                    <SelectTrigger
+                      aria-label="Saat situs dibatasi dibuka"
+                      className="h-11 w-full bg-surface-soft"
+                    >
+                      <SelectValue>
+                        {config.interventionMode === "breathing_first"
+                          ? "Langsung Buka Latihan Napas"
+                          : "Tampilkan Jeda Sadar 10 Detik"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="w-[var(--anchor-width)] max-w-none">
+                      <SelectItem value="supportive_pause">
+                        Tampilkan Jeda Sadar 10 Detik
+                      </SelectItem>
+                      <SelectItem value="breathing_first">
+                        Langsung Buka Latihan Napas
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="rounded-2xl border border-border bg-surface-soft/70 p-4">
                   <label className="flex cursor-pointer items-center justify-between gap-3">
                     <div>
                       <span className="block text-xs font-bold text-foreground">
-                        Jadwal Fokus Jam Rawan
+                        Aktif di Jam Rawan
                       </span>
                       <span className="text-[11px] text-muted-foreground">
-                        Otomatis aktif di jam tertentu (mendukung lintas tengah malam)
+                        Menyala otomatis sesuai rentang jam pilihanmu
                       </span>
                     </div>
                     <input
@@ -831,97 +903,58 @@ export default function FocusGuardPage() {
               </div>
             </section>
 
-            {/* Local Rule Simulator (Non-invasive local QA tool) */}
-            <section className="rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-6">
-              <div className="flex items-center gap-2">
-                <FlaskConical className="h-4 w-4 text-primary" aria-hidden="true" />
-                <h2 className="font-heading text-base font-bold text-foreground">
-                  Uji Logika Aturan Secara Lokal
-                </h2>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Cek hasil penyaringan tanpa membuka situs atau mengirim URL ke server.
-              </p>
-
-              <input
-                type="url"
-                value={simUrl}
-                onChange={(e) => setSimUrl(e.target.value)}
-                aria-label="URL simulasi uji lokal"
-                className="mt-3 h-11 w-full rounded-xl border border-input bg-surface-soft px-3 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
-              />
-
-              <div className="mt-3 rounded-xl bg-surface-soft px-3.5 py-2.5 text-xs">
-                <span className="font-bold text-foreground">Hasil Evaluasi: </span>
-                <span
-                  className={
-                    simResult.action === "intervene"
-                      ? "font-bold text-brand-orange-ink"
-                      : "font-bold text-primary"
-                  }
-                >
-                  {simResult.action === "intervene"
-                    ? `Mengarahkan ke Intervensi (${simResult.reason}${simResult.engineId ? `: ${simResult.engineId}` : ""})`
-                    : `Diizinkan (${simResult.reason})`}
-                </span>
-              </div>
-            </section>
-
-            {/* Integrated Existing Recovery Tools */}
+            {/* Integrated Recovery Tools */}
             <section className="rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-6">
               <h2 className="font-heading text-base font-bold text-foreground">
-                Alat Pendamping Saat Dorongan Muncul
+                Fitur Pengalihan Fokus
               </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Terhubung langsung dengan fitur CBT, ACT, pernapasan, dan permainan tenang Lumif.
-              </p>
 
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
                 <Link
                   href="/exercises/breathing"
-                  className="flex min-h-[48px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2.5 text-xs font-bold text-foreground transition hover:border-primary/50"
+                  className="flex min-h-[46px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2 text-xs font-bold text-foreground transition hover:border-primary/50"
                 >
                   <Wind className="h-4 w-4 text-primary" aria-hidden="true" />
-                  <span>Latihan Pernapasan 3D</span>
+                  <span>Latihan Pernapasan</span>
                 </Link>
                 <Link
                   href="/games"
-                  className="flex min-h-[48px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2.5 text-xs font-bold text-foreground transition hover:border-primary/50"
+                  className="flex min-h-[46px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2 text-xs font-bold text-foreground transition hover:border-primary/50"
                 >
                   <Gamepad2 className="h-4 w-4 text-primary" aria-hidden="true" />
-                  <span>10 Mini Game & Trivia Visual</span>
+                  <span>Mini Game &amp; Trivia</span>
                 </Link>
                 <Link
                   href="/urge-log"
-                  className="flex min-h-[48px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2.5 text-xs font-bold text-foreground transition hover:border-primary/50"
+                  className="flex min-h-[46px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2 text-xs font-bold text-foreground transition hover:border-primary/50"
                 >
                   <Zap className="h-4 w-4 text-brand-orange-ink" aria-hidden="true" />
-                  <span>Catat Hasrat & Audit HALT</span>
+                  <span>Catat Hasrat &amp; Pemicu</span>
                 </Link>
                 <Link
                   href="/modules"
-                  className="flex min-h-[48px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2.5 text-xs font-bold text-foreground transition hover:border-primary/50"
+                  className="flex min-h-[46px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2 text-xs font-bold text-foreground transition hover:border-primary/50"
                 >
                   <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
-                  <span>Modul Riset CBT & ACT (5 Bab)</span>
+                  <span>Modul CBT &amp; ACT (16 Bab)</span>
                 </Link>
                 <Link
                   href="/home"
-                  className="flex min-h-[48px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2.5 text-xs font-bold text-foreground transition hover:border-primary/50"
+                  className="flex min-h-[46px] items-center gap-3 rounded-xl border border-border bg-surface-soft/70 px-3.5 py-2 text-xs font-bold text-foreground transition hover:border-primary/50"
                 >
                   <ClipboardList className="h-4 w-4 text-primary" aria-hidden="true" />
-                  <span>Evaluasi Harian di Beranda</span>
+                  <span>Evaluasi Harian</span>
                 </Link>
               </div>
             </section>
 
-            {/* Aggregate Stats & Privacy Reset */}
+            {/* Stats & Privacy */}
             <section className="rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-6">
               <h2 className="font-heading text-base font-bold text-foreground">
-                Statistik Lokal & Privasi
+                Ringkasan Aktivitas &amp; Privasi
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Hanya menghitung angka agregat di perangkatmu. Riwayat URL dan kata kunci tidak pernah dikirim ke server.
+                Riwayat penelusuran dan kata kunci tetap di perangkatmu, tidak pernah dikirim ke server.
               </p>
 
               <div className="mt-4 grid grid-cols-3 gap-2.5 text-center">
@@ -930,7 +963,7 @@ export default function FocusGuardPage() {
                     {extSnapshot?.stats.interventionsToday ?? 0}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Intervensi hari ini
+                    Intervensi
                   </p>
                 </div>
                 <div className="rounded-2xl bg-surface-soft p-3">
@@ -938,7 +971,7 @@ export default function FocusGuardPage() {
                     {extSnapshot?.stats.pausesCompleted ?? 0}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Jeda sadar selesai
+                    Jeda selesai
                   </p>
                 </div>
                 <div className="rounded-2xl bg-surface-soft p-3">
@@ -946,19 +979,59 @@ export default function FocusGuardPage() {
                     {extSnapshot?.stats.recoveryActionsChosen ?? 0}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Aksi pengalihan
+                    Pengalihan
                   </p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => void handleResetAll()}
-                className="mt-4 flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 font-heading text-xs font-bold text-destructive transition hover:bg-destructive/15"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                <span>Hapus Seluruh Data Lokal Focus Guard</span>
-              </button>
+              <div className="mt-4 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRuleTester((prev) => !prev)}
+                  className="flex min-h-[38px] w-full items-center justify-between rounded-xl border border-border bg-surface-soft px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  <span>Simulasi Uji Aturan</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${showRuleTester ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {showRuleTester && (
+                  <div className="space-y-2 rounded-2xl border border-border bg-surface-soft/70 p-3 text-xs">
+                    <input
+                      type="url"
+                      value={simUrl}
+                      onChange={(e) => setSimUrl(e.target.value)}
+                      aria-label="URL simulasi uji aturan"
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
+                    />
+                    <p>
+                      <strong className="text-foreground">Hasil: </strong>
+                      <span
+                        className={
+                          simResult.action === "intervene"
+                            ? "font-bold text-brand-orange-ink"
+                            : "font-bold text-primary"
+                        }
+                      >
+                        {simResult.action === "intervene"
+                          ? `Menampilkan layar jeda (${simResult.reason})`
+                          : `Diizinkan (${simResult.reason})`}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => void handleResetAll()}
+                  className="flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 font-heading text-xs font-bold text-destructive transition hover:bg-destructive/15"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Reset Pengaturan Focus Guard</span>
+                </button>
+              </div>
             </section>
           </div>
         </div>

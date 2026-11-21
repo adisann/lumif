@@ -14,31 +14,31 @@ export type FocusGuardPreset = {
  */
 export const FOCUS_GUARD_PRESETS: FocusGuardPreset[] = [
   {
-    id: "safe_local_test",
-    title: "Paket Uji Aman (Simulasi Lokal)",
-    description:
-      "Memblokir domain contoh aman (example.com) dan kata kunci simulasi agar kamu bisa mengetes proteksi tanpa mengakses konten nyata.",
-    domains: ["example.com"],
-    keywords: ["lumiftestblock"],
-    badge: "Direkomendasikan untuk uji coba",
-  },
-  {
     id: "late_night_video",
-    title: "Jeda Hiburan & Scroll Tanpa Batas",
+    title: "Jeda Hiburan & Media Sosial",
     description:
-      "Membantu memberi jeda sadar saat dorongan membuka platform video singkat atau forum tanpa henti di jam rawan.",
+      "Memberi jeda sebelum membuka platform video singkat atau forum saat jam rawan.",
     domains: ["tiktok.com", "9gag.com"],
     keywords: [],
-    badge: "Pengalih perhatian",
+    badge: "Pengalih Fokus",
   },
   {
     id: "adult_search_terms",
-    title: "Filter Pencarian Pemicu Umum",
+    title: "Filter Pencarian Sensitif",
     description:
-      "Menyaring kata kunci pencarian sensitif umum di mesin pencari sambil tetap meloloskan kata kunci pemulihan atau edukasi medis.",
+      "Menyaring kata kunci pemicu di mesin pencari sambil tetap meloloskan topik edukasi dan pemulihan.",
     domains: [],
     keywords: ["porn", "hentai", "nsfw", "bokep"],
-    badge: "Opt-in",
+    badge: "Pencarian Aman",
+  },
+  {
+    id: "safe_local_test",
+    title: "Simulasi Uji Coba Aman",
+    description:
+      "Menguji layar jeda menggunakan domain contoh (example.com) sebelum memasang daftar pribadimu.",
+    domains: ["example.com"],
+    keywords: ["lumiftestblock"],
+    badge: "Uji Coba",
   },
 ];
 

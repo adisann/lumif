@@ -53,13 +53,32 @@ export function clearLocalFocusGuardDraft(): void {
 
 let reqSeq = 0;
 
+export function subscribeFocusGuardPush(
+  onPush: (state: FocusGuardStateSnapshot) => void
+): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const handler = (event: MessageEvent) => {
+    if (event.source !== window) return;
+    if (event.origin !== window.location.origin) return;
+    if (!isValidExtResponseEnvelope(event.data)) return;
+    const envelope = event.data as ExtBridgeResponseEnvelope;
+    if (envelope.requestId === "__fg_push__" && envelope.ok && envelope.state) {
+      onPush(envelope.state);
+    }
+  };
+
+  window.addEventListener("message", handler);
+  return () => window.removeEventListener("message", handler);
+}
+
 /**
  * Sends a strictly typed Focus Guard command over the localhost window bridge
- * with a short timeout so the website works reliably whether the extension is installed or not.
+ * with a generous timeout so waking MV3 service workers respond reliably.
  */
 export function sendFocusGuardBridgeCommand(
   command: BridgeCommand,
-  timeoutMs = 700
+  timeoutMs = 2000
 ): Promise<{
   connected: boolean;
   state?: FocusGuardStateSnapshot;
@@ -91,7 +110,7 @@ export function sendFocusGuardBridgeCommand(
       settled = true;
       cleanup();
       resolve({
-        connected: true,
+        connected: envelope.ok,
         state: envelope.state,
         error: envelope.ok ? undefined : envelope.error,
       });

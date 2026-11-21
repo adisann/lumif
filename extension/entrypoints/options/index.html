@@ -10,18 +10,18 @@
     <main class="container">
       <header class="page-header">
         <div class="brand">
-          <img src="/icon/48.png" alt="Lumif" width="38" height="38" />
+          <img src="/icon/48.png" alt="Lumif" width="32" height="32" />
           <div>
             <h1>Pengaturan Lumif Focus Guard</h1>
-            <p>Konfigurasi lokal sepenuhnya di perangkatmu tanpa mengirim riwayat browsing ke server.</p>
+            <p>Semua aturan tersimpan pribadi di perangkatmu.</p>
           </div>
         </div>
         <span id="opt-status-pill" class="pill">Memuat...</span>
       </header>
 
       <section id="opt-permission-alert" class="card alert hidden">
-        <p><strong>Izin Host Dibutuhkan:</strong> Browser membutuhkan izin pengalihan agar domain/pencarian yang cocok bisa diarahkan ke layar intervensi Lumif.</p>
-        <button id="opt-grant-btn" type="button" class="btn btn-amber">Berikan Izin Pengalihan</button>
+        <p><strong>Izin Browser Dibutuhkan:</strong> Izinkan akses halaman jeda agar Focus Guard dapat bekerja di browser ini.</p>
+        <button id="opt-grant-btn" type="button" class="btn btn-amber">Izinkan Halaman Jeda</button>
       </section>
 
       <div class="grid">
@@ -57,8 +57,8 @@
           <label class="field">
             <span>Perilaku Layar Intervensi</span>
             <select id="opt-intervention-mode">
-              <option value="supportive_pause">Jeda Sadar 10 Detik dulu (Disarankan)</option>
-              <option value="breathing_first">Langsung buka Panduan Pernapasan 4-4-6</option>
+              <option value="supportive_pause">Jeda 10 detik dulu</option>
+              <option value="breathing_first">Langsung latihan napas</option>
             </select>
           </label>
 
@@ -90,11 +90,11 @@
         </section>
 
         <section class="card stack">
-          <h2>Domain yang Dibatasi</h2>
-          <p class="muted">Mencakup domain utama dan subdomainnya. Memblokir <code>x.com</code> tidak akan memblokir <code>example.com</code>.</p>
+          <h2>Situs yang Dibatasi</h2>
+          <p class="muted">Mencakup domain utama beserta halamannya.</p>
           <form id="form-add-domain" class="add-row">
-            <input id="input-domain" type="text" placeholder="mis. reddit.com atau example.com" />
-            <button type="submit" class="btn btn-primary">Tambah Domain</button>
+            <input id="input-domain" type="text" placeholder="Contoh: reddit.com atau tiktok.com" />
+            <button type="submit" class="btn btn-primary">Tambah Situs</button>
           </form>
           <p id="domain-error" class="error-text hidden"></p>
           <ul id="list-domains" class="chip-list"></ul>
@@ -102,9 +102,9 @@
 
         <section class="card stack">
           <h2>Kata Kunci Pencarian</h2>
-          <p class="muted">Berlaku di Google, Brave Search, Bing, DuckDuckGo, Yahoo, Ecosia, Startpage, & YouTube. Pencarian edukasi/pemulihan otomatis dikecualikan.</p>
+          <p class="muted">Menyaring pencarian pemicu secara lokal sambil tetap meloloskan pencarian edukasi dan pemulihan.</p>
           <form id="form-add-keyword" class="add-row">
-            <input id="input-keyword" type="text" placeholder="mis. lumiftestblock atau porn" />
+            <input id="input-keyword" type="text" placeholder="Tambah kata kunci pemicu..." />
             <button type="submit" class="btn btn-primary">Tambah Kata Kunci</button>
           </form>
           <p id="keyword-error" class="error-text hidden"></p>
@@ -112,10 +112,10 @@
         </section>
 
         <section class="card stack full-span">
-          <h2>Allowlist (Pengecualian Domain)</h2>
-          <p class="muted">Domain dalam daftar ini selalu lolos dari penyaringan, bahkan jika kata kunci cocok.</p>
+          <h2>Pengecualian Situs</h2>
+          <p class="muted">Situs di daftar ini tidak akan dibatasi.</p>
           <form id="form-add-allow" class="add-row">
-            <input id="input-allow" type="text" placeholder="mis. wikipedia.org" />
+            <input id="input-allow" type="text" placeholder="Contoh: wikipedia.org" />
             <button type="submit" class="btn btn-outline">Tambah Pengecualian</button>
           </form>
           <ul id="list-allow" class="chip-list"></ul>

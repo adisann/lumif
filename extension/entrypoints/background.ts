@@ -217,10 +217,12 @@ export default defineBackground(() => {
 
           case "FG_WEB_BRIDGE": {
             // Extra verification that content script came from a strictly allowed local origin
-            const tabUrl = sender.tab?.url || sender.url || "";
+            const senderWithOrigin = sender as typeof sender & { origin?: string };
+            const originCandidate =
+              senderWithOrigin.origin || sender.tab?.url || sender.url || "";
             let originAllowed = false;
             try {
-              const parsed = new URL(tabUrl);
+              const parsed = new URL(originCandidate);
               originAllowed =
                 (parsed.hostname === "localhost" ||
                   parsed.hostname === "127.0.0.1") &&

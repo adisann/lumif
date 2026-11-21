@@ -132,7 +132,7 @@ btnPause10.addEventListener("click", async () => {
 
 quickType.addEventListener("change", () => {
   quickInput.placeholder =
-    quickType.value === "domain" ? "mis. example.com" : "mis. kata pemicu";
+    quickType.value === "domain" ? "Contoh: reddit.com" : "Contoh: kata pemicu";
 });
 
 quickForm.addEventListener("submit", async (e) => {
@@ -143,7 +143,7 @@ quickForm.addEventListener("submit", async (e) => {
   if (quickType.value === "domain") {
     const clean = normalizeDomainInput(raw);
     if (!clean) {
-      showFeedback("Masukkan domain valid, mis. example.com.", true);
+      showFeedback("Masukkan nama situs yang valid, misalnya reddit.com.", true);
       return;
     }
     const nextDomains = Array.from(

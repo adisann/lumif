@@ -3,117 +3,228 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Jeda Sadar · Lumif Focus Guard</title>
+    <title>Lumif Focus Guard</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <main class="shell">
-      <section class="intervention-card">
+      <section class="intervention-card" aria-labelledby="headline">
         <header class="top-row">
           <div class="brand">
-            <img src="/icon/48.png" alt="Lumif" width="34" height="34" />
-            <span class="eyebrow">Lumif Focus Guard · Intervensi Tenang</span>
+            <img src="/icon/48.png" alt="Lumif" width="24" height="24" />
+            <span class="eyebrow">Lumif Focus Guard</span>
           </div>
-          <span id="reason-tag" class="reason-tag">Jeda Sadar</span>
+          <span id="status-tag" class="status-tag">Situs dibatasi</span>
         </header>
 
-        <h1 id="headline">Tarik napas pelan sejenak sebelum melangkah</h1>
-        <p id="subline" class="lead">
-          Otak sering bereaksi otomatis saat lelah, bosan, atau stres. Ambil 10 detik ini untuk kembali memegang kendali dengan sadar.
-        </p>
-
-        <div class="goal-banner">
-          <span class="goal-label">Pengingat Tujuanmu</span>
-          <p id="personal-goal">Menjaga ketenangan pikiran dan kendali diri hari ini.</p>
+        <div class="header-copy">
+          <h1 id="headline">Situs ini sedang dibatasi</h1>
+          <p id="subline" class="lead">
+            Kamu mengaktifkan Focus Guard untuk mengurangi distraksi. Kamu bisa kembali ke aktivitas sebelumnya atau mengambil jeda singkat.
+          </p>
+          <p class="goal-line">
+            <span class="goal-prefix">Tujuanmu:</span>
+            <span id="personal-goal">Menjaga ketenangan pikiran, fokus harian, dan tidur lebih teratur.</span>
+          </p>
         </div>
 
-        <!-- Built-in Offline Activities (work with zero Next.js connection) -->
-        <div class="tabs" role="tablist" aria-label="Pilih bantuan cepat offline">
-          <button type="button" role="tab" aria-selected="true" class="tab active" data-panel="breath">
-            Napas 4-4-6
-          </button>
-          <button type="button" role="tab" aria-selected="false" class="tab" data-panel="grounding">
-            Grounding 3-2-1
-          </button>
-          <button type="button" role="tab" aria-selected="false" class="tab" data-panel="halt">
-            Cek HALT
-          </button>
-        </div>
-
-        <section id="panel-breath" class="activity-box">
-          <div class="breath-layout">
-            <div id="breath-circle" class="breath-circle">
-              <span id="breath-phase">Siap</span>
-            </div>
-            <div class="breath-copy">
-              <h2 id="breath-title">Ikuti ritme napas 1 siklus</h2>
-              <p id="breath-guide">Tarik napas 4 detik, tahan 4 detik, lalu hembuskan panjang 6 detik untuk meredakan alarm amigdala.</p>
-              <button id="btn-breath-toggle" type="button" class="btn btn-primary">
-                Mulai Napas Tenang
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section id="panel-grounding" class="activity-box hidden">
-          <h2>Amati sekitar sekarang (tanpa terburu-buru)</h2>
-          <p class="small">Menyebut objek nyata membantu korteks rasionalmu aktif kembali.</p>
-          <div class="grounding-list">
-            <label><input type="checkbox" class="g-check" /> Sebutkan 3 benda nyata yang terlihat di ruanganmu sekarang</label>
-            <label><input type="checkbox" class="g-check" /> Rasakan 2 tekstur fisik (mis. lantai di kaki, kain kursi, suhu gelas)</label>
-            <label><input type="checkbox" class="g-check" /> Dengarkan 1 suara terjauh di luar ruangan ini</label>
-          </div>
-          <p id="grounding-status" class="small accent"></p>
-        </section>
-
-        <section id="panel-halt" class="activity-box hidden">
-          <h2>Apakah dorongan ini sebenarnya sinyal lain?</h2>
-          <div class="halt-grid">
-            <button type="button" class="halt-btn" data-tip="Minum 1 gelas air atau makan camilan sehat dulu sebelum membuka layar.">
-              <strong>Hungry (Lapar/Haus)</strong>
-            </button>
-            <button type="button" class="halt-btn" data-tip="Ketegangan emosi mencari pelepasan cepat. Coba hembusan napas panjang 3 kali.">
-              <strong>Angry (Kesal/Stres)</strong>
-            </button>
-            <button type="button" class="halt-btn" data-tip="Pindah ke ruang yang lebih ramai atau kirim pesan singkat ke teman dekat.">
-              <strong>Lonely (Sepi)</strong>
-            </button>
-            <button type="button" class="halt-btn" data-tip="Saat lelah, sistem rem otak melemah. Berhenti menatap layar dan istirahat lebih awal.">
-              <strong>Tired (Lelah)</strong>
-            </button>
-          </div>
-          <p id="halt-tip" class="halt-tip hidden"></p>
-        </section>
-
-        <!-- Integrated Lumif Web Shortcuts (optional enhancement) -->
-        <section class="web-links">
-          <span class="goal-label">Alat Lanjutan di Lumif Web (Opsional)</span>
-          <div class="link-row">
-            <a href="http://localhost:3001/games" target="_blank" rel="noopener noreferrer" class="chip-link" data-action="game">
-              Mini Game Alihkan Fokus
-            </a>
-            <a href="http://localhost:3001/exercises/breathing" target="_blank" rel="noopener noreferrer" class="chip-link" data-action="breathing">
-              Napas 3D Pendamping
-            </a>
-            <a href="http://localhost:3001/urge-log" target="_blank" rel="noopener noreferrer" class="chip-link" data-action="urge">
-              Catat Hasrat & Trigger
-            </a>
-            <a href="http://localhost:3001/modules" target="_blank" rel="noopener noreferrer" class="chip-link" data-action="modules">
-              Modul CBT & ACT
-            </a>
-          </div>
-        </section>
-
-        <!-- Transparent User Controls -->
-        <footer class="actions">
+        <div class="actions">
           <button id="btn-go-safe" type="button" class="btn btn-primary">
-            Tutup & Kembali ke Ruang Aman
+            Kembali ke aktivitas sebelumnya
           </button>
-          <button id="btn-pause-guard" type="button" class="btn btn-outline">
-            Jeda Proteksi 10 Menit
+          <button id="btn-pause-guard" type="button" class="btn btn-secondary">
+            Jeda proteksi 10 menit
           </button>
-        </footer>
-        <p id="pause-notice" class="small hidden"></p>
+        </div>
+
+        <p id="pause-notice" class="status-note hidden" role="status"></p>
+
+        <!-- Progressive Disclosure: Optional Offline Support -->
+        <div class="support-disclosure">
+          <button
+            id="btn-support-toggle"
+            type="button"
+            class="disclosure-trigger"
+            aria-expanded="false"
+            aria-controls="support-drawer"
+          >
+            <span>Butuh bantuan mengalihkan dorongan?</span>
+            <svg
+              class="chevron"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          <div id="support-drawer" class="support-drawer hidden">
+            <nav class="tabs" role="tablist" aria-label="Pilih latihan pengalihan">
+              <button
+                type="button"
+                role="tab"
+                id="tab-breath"
+                aria-selected="true"
+                aria-controls="panel-breath"
+                class="tab active"
+                data-panel="breath"
+              >
+                Napas 4-4-6
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-grounding"
+                aria-selected="false"
+                aria-controls="panel-grounding"
+                class="tab"
+                data-panel="grounding"
+              >
+                Grounding 3-2-1
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-halt"
+                aria-selected="false"
+                aria-controls="panel-halt"
+                class="tab"
+                data-panel="halt"
+              >
+                Cek HALT
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-more"
+                aria-selected="false"
+                aria-controls="panel-more"
+                class="tab"
+                data-panel="more"
+              >
+                Fitur Lumif
+              </button>
+            </nav>
+
+            <section
+              id="panel-breath"
+              role="tabpanel"
+              aria-labelledby="tab-breath"
+              class="activity-panel"
+            >
+              <div class="breath-layout">
+                <div id="breath-circle" class="breath-circle" aria-live="polite">
+                  <span id="breath-phase">Siap</span>
+                </div>
+                <div class="breath-copy">
+                  <h2 id="breath-title">Latihan napas singkat</h2>
+                  <p id="breath-guide">
+                    Tarik napas 4 detik, tahan 4 detik, lalu hembuskan 6 detik.
+                  </p>
+                  <div>
+                    <button id="btn-breath-toggle" type="button" class="btn-inline">
+                      Mulai latihan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              id="panel-grounding"
+              role="tabpanel"
+              aria-labelledby="tab-grounding"
+              class="activity-panel hidden"
+            >
+              <h2>Amati sekitar secara perlahan</h2>
+              <div class="grounding-list">
+                <label>
+                  <input type="checkbox" class="g-check" />
+                  <span>Sebutkan 3 benda yang terlihat di sekitarmu</span>
+                </label>
+                <label>
+                  <input type="checkbox" class="g-check" />
+                  <span>Rasakan 2 sentuhan fisik (misalnya kaki di lantai atau kursi)</span>
+                </label>
+                <label>
+                  <input type="checkbox" class="g-check" />
+                  <span>Dengarkan 1 suara yang terdengar paling jelas</span>
+                </label>
+              </div>
+              <p id="grounding-status" class="status-note hidden" aria-live="polite"></p>
+            </section>
+
+            <section
+              id="panel-halt"
+              role="tabpanel"
+              aria-labelledby="tab-halt"
+              class="activity-panel hidden"
+            >
+              <h2>Cek kebutuhan dasar saat ini</h2>
+              <div class="halt-grid">
+                <button
+                  type="button"
+                  class="halt-btn"
+                  data-tip="Coba minum segelas air atau makan camilan secukupnya."
+                >
+                  Lapar atau haus (Hungry)
+                </button>
+                <button
+                  type="button"
+                  class="halt-btn"
+                  data-tip="Berhenti sejenak dari layar dan tarik napas panjang tiga kali."
+                >
+                  Kesal atau stres (Angry)
+                </button>
+                <button
+                  type="button"
+                  class="halt-btn"
+                  data-tip="Pertimbangkan menghubungi teman atau pindah ke ruang bersama."
+                >
+                  Kesepian (Lonely)
+                </button>
+                <button
+                  type="button"
+                  class="halt-btn"
+                  data-tip="Istirahatkan mata atau pertimbangkan tidur lebih awal."
+                >
+                  Lelah (Tired)
+                </button>
+              </div>
+              <p id="halt-tip" class="halt-tip hidden" aria-live="polite"></p>
+            </section>
+
+            <section
+              id="panel-more"
+              role="tabpanel"
+              aria-labelledby="tab-more"
+              class="activity-panel hidden"
+            >
+              <h2>Buka fitur pendukung di Lumif</h2>
+              <div class="link-list">
+                <a href="http://localhost:3001/exercises/breathing" target="_blank" rel="noopener noreferrer" class="text-link">
+                  Latihan Pernapasan Terpandu
+                </a>
+                <a href="http://localhost:3001/games" target="_blank" rel="noopener noreferrer" class="text-link">
+                  Mini Game Pengalih Fokus
+                </a>
+                <a href="http://localhost:3001/urge-log" target="_blank" rel="noopener noreferrer" class="text-link">
+                  Catat Hasrat &amp; Pemicu
+                </a>
+                <a href="http://localhost:3001/modules" target="_blank" rel="noopener noreferrer" class="text-link">
+                  Modul Edukasi CBT &amp; ACT
+                </a>
+              </div>
+            </section>
+          </div>
+        </div>
       </section>
     </main>
     <script type="module" src="./main.ts"></script>
