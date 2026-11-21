@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import Image from "next/image";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Pause, Play, RotateCcw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { PetStage } from "@/lib/pets";
 
 type LumifMascot3DProps = {
@@ -513,16 +513,22 @@ export default function LumifMascot3D({
           aria-label="Pendamping 3D Lumif. Klik untuk menyapa atau seret untuk memutar."
         />
 
-        {(!isLoaded || hasError) && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <Image
-              src="/assets/bear-avatar.png"
-              alt="Pendamping Lumif"
-              width={124}
-              height={124}
-              className="rounded-full object-contain"
-              priority
-            />
+        {!isLoaded && !hasError && (
+          <div
+            className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 p-6"
+            aria-busy="true"
+            aria-label="Memuat model 3D pendamping"
+          >
+            <Skeleton className="h-24 w-24 rounded-full bg-primary/15" />
+            <Skeleton className="h-3.5 w-32 rounded-full bg-primary/10" />
+          </div>
+        )}
+
+        {hasError && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center">
+            <span className="text-xs font-medium text-muted-foreground">
+              Tampilan 3D belum bisa dimuat
+            </span>
           </div>
         )}
       </div>

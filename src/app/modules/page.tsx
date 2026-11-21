@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { loadCompletedModuleIds } from "@/components/ModuleReader";
 import {
   MODULE_PHASES,
@@ -38,11 +39,13 @@ const FILTER_TABS: { key: FilterMode; label: string }[] = [
 
 export default function ModulesListScreen() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   useEffect(() => {
     const raf = window.requestAnimationFrame(() => {
       setCompletedIds(loadCompletedModuleIds());
+      setIsLoadingProgress(false);
     });
     return () => window.cancelAnimationFrame(raf);
   }, []);
@@ -78,12 +81,16 @@ export default function ModulesListScreen() {
               <p className="text-xs leading-relaxed text-muted-foreground md:text-sm">
                 16 bab dalam 4 fase berbasis riset CBT dan ACT hingga 2026. Setiap bab berisi bacaan singkat, contoh harian, dan praktik opsional.
               </p>
-              <p className="inline-flex items-center gap-1.5 pt-1 text-xs font-semibold text-primary">
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>
-                  {completedCount} dari {MODULES_DATA.length} bab selesai dibaca
-                </span>
-              </p>
+              {isLoadingProgress ? (
+                <Skeleton className="mt-1 h-4 w-44" />
+              ) : (
+                <p className="inline-flex items-center gap-1.5 pt-1 text-xs font-semibold text-primary">
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>
+                    {completedCount} dari {MODULES_DATA.length} bab selesai dibaca
+                  </span>
+                </p>
+              )}
             </div>
 
             <button

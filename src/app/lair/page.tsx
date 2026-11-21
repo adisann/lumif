@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
 import PetPurchaseConfirmDialog from "@/components/PetPurchaseConfirmDialog";
+import Mascot3DSkeleton from "@/components/Mascot3DSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   careForPet,
@@ -37,6 +38,7 @@ import {
 
 const LumifMascot3D = dynamic(() => import("@/components/LumifMascot3D"), {
   ssr: false,
+  loading: () => <Mascot3DSkeleton heightClass="h-[240px] sm:h-[280px]" />,
 });
 
 export default function PetLairPage() {

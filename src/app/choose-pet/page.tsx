@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Egg, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import Mascot3DSkeleton from "@/components/Mascot3DSkeleton";
 import { createClient } from "@/lib/supabase/client";
 import {
   getPetSpecies,
@@ -16,6 +18,7 @@ import { syncOnboardingToSupabase } from "@/lib/onboarding";
 
 const LumifMascot3D = dynamic(() => import("@/components/LumifMascot3D"), {
   ssr: false,
+  loading: () => <Mascot3DSkeleton heightClass="h-[240px] sm:h-[280px]" />,
 });
 
 export default function ChoosePetPage() {
@@ -26,6 +29,7 @@ export default function ChoosePetPage() {
   const [nickname, setNickname] = useState(getPetSpecies("duck").defaultNickname);
   const [greetingSignal, setGreetingSignal] = useState(0);
   const [isHatching, setIsHatching] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const selectedEgg = useMemo(
     () => STARTER_EGGS.find((item) => item.speciesId === selectedId) ?? STARTER_EGGS[0],
@@ -48,8 +52,10 @@ export default function ChoosePetPage() {
               : null;
           if (!demoUser) {
             router.replace("/login");
+            return;
           }
         }
+        setIsCheckingAuth(false);
       } catch {
         const demoUser =
           typeof window !== "undefined"
@@ -57,7 +63,9 @@ export default function ChoosePetPage() {
             : null;
         if (active && !demoUser) {
           router.replace("/login");
+          return;
         }
+        if (active) setIsCheckingAuth(false);
       }
     };
     checkAuth();
@@ -106,6 +114,37 @@ export default function ChoosePetPage() {
   return (
     <main className="relative flex min-h-dvh w-full flex-col justify-center bg-surface-soft px-4 py-8 font-sans text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-4xl">
+        {isCheckingAuth ? (
+          <div className="space-y-6" aria-busy="true" aria-label="Memuat pemilihan telur pendamping">
+            <div className="space-y-2.5 text-center">
+              <Skeleton className="mx-auto h-8 w-64 rounded-xl" />
+              <Skeleton className="mx-auto h-4 w-full max-w-md" />
+            </div>
+            <div className="grid grid-cols-1 gap-6 rounded-3xl border border-border bg-card p-5 shadow-xs sm:p-7 lg:grid-cols-12 lg:items-center">
+              <div className="lg:col-span-5">
+                <div className="space-y-3 rounded-2xl border border-border bg-surface-soft p-4">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                  <Mascot3DSkeleton heightClass="h-[240px] sm:h-[280px]" />
+                  <Skeleton className="h-14 w-full rounded-xl" />
+                </div>
+              </div>
+              <div className="space-y-5 lg:col-span-7">
+                <Skeleton className="h-4 w-48" />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {[1, 2, 3, 4].map((item) => (
+                    <Skeleton key={item} className="h-[82px] w-full rounded-2xl" />
+                  ))}
+                </div>
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="mb-6 text-center md:mb-8">
           <h1 className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
             Pilih <span className="text-brand-orange-ink">Telur Pendampingmu</span>
@@ -241,6 +280,8 @@ export default function ChoosePetPage() {
             </Button>
           </div>
         </form>
+        </>
+        )}
       </div>
     </main>
   );

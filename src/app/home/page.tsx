@@ -20,12 +20,12 @@ import {
   Coins,
   Shield,
 } from "lucide-react";
-import Image from "next/image";
 import BottomNav from "@/components/BottomNav";
 import EmergencyFlow from "@/components/EmergencyFlow";
 import UpdateKondisiModal from "@/components/UpdateKondisiModal";
 import RelapseResetFlow from "@/components/RelapseResetFlow";
 import StreakFlame from "@/components/StreakFlame";
+import Mascot3DSkeleton from "@/components/Mascot3DSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -58,17 +58,7 @@ import {
 
 const LumifMascot3D = dynamic(() => import("@/components/LumifMascot3D"), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-[210px] w-full items-center justify-center rounded-2xl bg-primary-light/60">
-      <Image
-        src="/assets/bear-avatar.png"
-        alt="Memuat maskot beruang Lumif"
-        width={120}
-        height={120}
-        className="object-contain"
-      />
-    </div>
-  ),
+  loading: () => <Mascot3DSkeleton heightClass="h-[220px]" />,
 });
 
 type Mission = {
@@ -454,15 +444,16 @@ export default function DashboardScreen() {
               <section className="relative rounded-b-[28px] bg-[#257B5A] px-6 pb-8 pt-5 text-white md:rounded-[28px] md:px-8 md:py-7">
                 <div className="mb-7 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white/30 bg-white/20">
-                      <Image
-                        src="/assets/bear-avatar.png"
-                        alt="Avatar Beruang Lumif"
-                        width={44}
-                        height={44}
-                        className="object-cover"
-                      />
-                    </div>
+                    {isLoadingMissions && !userName ? (
+                      <Skeleton className="h-11 w-11 shrink-0 rounded-full bg-white/25" />
+                    ) : (
+                      <div
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white/30 bg-white/20 font-heading text-base font-bold text-white"
+                        aria-hidden="true"
+                      >
+                        {(userName || "L").charAt(0).toUpperCase()}
+                      </div>
+                    )}
 
                     <div>
                       <p className="font-heading text-xs text-white/90">
