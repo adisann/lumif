@@ -1,5 +1,6 @@
 import {
   buildDynamicDnrRules,
+  isAllowedWebOrigin,
   sanitizeFocusGuardConfig,
   type BridgeCommand,
   type FocusGuardStateSnapshot,
@@ -216,17 +217,14 @@ export default defineBackground(() => {
             return { ok: true, state: await syncProtectionEngine() };
 
           case "FG_WEB_BRIDGE": {
-            // Extra verification that content script came from a strictly allowed local origin
+            // Extra verification that content script came from a strictly allowed Lumif origin
             const senderWithOrigin = sender as typeof sender & { origin?: string };
             const originCandidate =
               senderWithOrigin.origin || sender.tab?.url || sender.url || "";
             let originAllowed = false;
             try {
               const parsed = new URL(originCandidate);
-              originAllowed =
-                (parsed.hostname === "localhost" ||
-                  parsed.hostname === "127.0.0.1") &&
-                parsed.protocol === "http:";
+              originAllowed = isAllowedWebOrigin(parsed.origin);
             } catch {
               originAllowed = false;
             }

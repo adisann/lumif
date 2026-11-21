@@ -1,5 +1,6 @@
 import {
   getEffectiveRules,
+  LUMIF_PRODUCTION_ORIGIN,
   normalizeDomainInput,
   normalizeKeywordInput,
   type FocusGuardStateSnapshot,
@@ -197,7 +198,7 @@ btnOpenOptions.addEventListener("click", () => {
 });
 
 btnOpenWeb.addEventListener("click", () => {
-  void browser.tabs.create({ url: "http://localhost:3001/focus-guard" });
+  void browser.tabs.create({ url: `${LUMIF_PRODUCTION_ORIGIN}/focus-guard` });
 });
 
 void refresh();

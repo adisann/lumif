@@ -8,8 +8,12 @@ import {
 } from "../../src/lib/focus-guard";
 
 export default defineContentScript({
-  // Scoped strictly to local Lumif web origins — zero injection on external sites
-  matches: ["http://localhost/*", "http://127.0.0.1/*"],
+  // Scoped strictly to Lumif web origins (local dev & Vercel production) — zero injection on external sites
+  matches: [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://lumif-webapp.vercel.app/*",
+  ],
   runAt: "document_start",
   main() {
     const notifyWebReady = async () => {

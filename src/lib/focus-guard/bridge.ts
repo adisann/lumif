@@ -4,12 +4,18 @@ export const LUMIF_FG_WEB_SOURCE = "lumif-focus-guard-web" as const;
 export const LUMIF_FG_EXT_SOURCE = "lumif-focus-guard-ext" as const;
 export const LUMIF_FG_PROTOCOL_VERSION = 1 as const;
 
+export const LUMIF_PRODUCTION_ORIGIN = "https://lumif-webapp.vercel.app" as const;
+
 export const ALLOWED_LOCAL_WEB_ORIGINS: readonly string[] = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:3001",
+  LUMIF_PRODUCTION_ORIGIN,
 ];
+
+const VERCEL_PREVIEW_ORIGIN_RE =
+  /^https:\/\/lumif-webapp(?:-[a-z0-9-]+)?\.vercel\.app$/i;
 
 export type BridgeCommand =
   | { type: "FG_PING" }
@@ -45,7 +51,10 @@ const VALID_COMMAND_TYPES = new Set([
 ]);
 
 export function isAllowedWebOrigin(origin: string): boolean {
-  return ALLOWED_LOCAL_WEB_ORIGINS.includes(origin);
+  return (
+    ALLOWED_LOCAL_WEB_ORIGINS.includes(origin) ||
+    VERCEL_PREVIEW_ORIGIN_RE.test(origin)
+  );
 }
 
 export function isValidWebRequestEnvelope(

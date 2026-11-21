@@ -75,6 +75,15 @@ export function buildDynamicDnrRules(
       resourceTypes: ["main_frame"],
     },
   });
+  rules.push({
+    id: nextId++,
+    priority: 100,
+    action: { type: "allow" },
+    condition: {
+      urlFilter: "||lumif-webapp.vercel.app^",
+      resourceTypes: ["main_frame"],
+    },
+  });
 
   // Priority 100: User explicit allowlist (exact domain + subdomains)
   for (const allowed of config.allowlistDomains.slice(0, 100)) {

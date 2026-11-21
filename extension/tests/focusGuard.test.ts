@@ -188,6 +188,9 @@ describe("DNR dynamic rules compilation & privacy safety", () => {
 
   it("validates bridge origin & message schema strictly", () => {
     expect(isAllowedWebOrigin("http://localhost:3001")).toBe(true);
+    expect(isAllowedWebOrigin("https://lumif-webapp.vercel.app")).toBe(true);
+    expect(isAllowedWebOrigin("https://lumif-webapp-git-main.vercel.app")).toBe(true);
+    expect(isAllowedWebOrigin("https://evil.vercel.app")).toBe(false);
     expect(isAllowedWebOrigin("https://evil.example.com")).toBe(false);
 
     expect(

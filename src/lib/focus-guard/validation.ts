@@ -11,6 +11,7 @@ const RESERVED_LOCAL_HOSTS = new Set([
   "127.0.0.1",
   "0.0.0.0",
   "::1",
+  "lumif-webapp.vercel.app",
 ]);
 
 const VALID_CATEGORIES = new Set<FocusGuardCategoryId>([
