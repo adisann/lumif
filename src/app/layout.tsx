@@ -31,7 +31,10 @@ export default function RootLayout({
       className={`${lexend.variable} ${poppins.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-dvh w-full bg-surface-soft font-sans text-foreground">
+      <body
+        className="min-h-dvh w-full bg-surface-soft font-sans text-foreground"
+        suppressHydrationWarning
+      >
         <ThemeInitializer />
         <div className="min-h-dvh w-full overflow-x-clip bg-surface-soft">
           {children}

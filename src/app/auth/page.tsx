@@ -1,42 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
+// import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Mail } from "lucide-react";
-import { FaGoogle, FaApple } from "react-icons/fa";
-import { createClient } from "@/lib/supabase/client";
+// import { FaGoogle, FaApple } from "react-icons/fa";
+// import { createClient } from "@/lib/supabase/client";
 import LumifLogo from "@/components/LumifLogo";
 
 export default function AuthOptionsScreen() {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
-  const [oauthNotice, setOauthNotice] = useState("");
-  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
-
-  const handleOAuth = async (provider: "google" | "apple") => {
-    setOauthNotice("");
-    setLoadingProvider(provider);
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/home`,
-        },
-      });
-      if (error) {
-        setOauthNotice(
-          `Login ${provider === "google" ? "Google" : "Apple"} belum tersedia (${error.message}). Gunakan Email atau Mode Demo.`
-        );
-      }
-    } catch {
-      setOauthNotice(
-        `Tidak dapat terhubung ke layanan login ${provider === "google" ? "Google" : "Apple"}. Gunakan Email atau Mode Demo.`
-      );
-    } finally {
-      setLoadingProvider(null);
-    }
-  };
+  // OAuth providers (Google & Apple) paused until configured
+  // const supabase = useMemo(() => createClient(), []);
+  // const [oauthNotice, setOauthNotice] = useState("");
+  // const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+  //
+  // const handleOAuth = async (provider: "google" | "apple") => {
+  //   setOauthNotice("");
+  //   setLoadingProvider(provider);
+  //   try {
+  //     const { error } = await supabase.auth.signInWithOAuth({
+  //       provider,
+  //       options: {
+  //         redirectTo: `${window.location.origin}/home`,
+  //       },
+  //     });
+  //     if (error) {
+  //       setOauthNotice(
+  //         `Login ${provider === "google" ? "Google" : "Apple"} belum tersedia (${error.message}). Gunakan Email.`
+  //       );
+  //     }
+  //   } catch {
+  //     setOauthNotice(
+  //       `Tidak dapat terhubung ke layanan login ${provider === "google" ? "Google" : "Apple"}. Gunakan Email.`
+  //     );
+  //   } finally {
+  //     setLoadingProvider(null);
+  //   }
+  // };
 
   return (
     <main className="relative flex min-h-dvh w-full flex-col bg-surface-soft font-sans text-foreground">
@@ -61,20 +61,12 @@ export default function AuthOptionsScreen() {
               Masuk ke Ruang Lumif
             </h1>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Pilih metode masuk untuk melanjutkan perjalanan pemulihanmu.
+              Gunakan email untuk melanjutkan perjalanan pemulihanmu.
             </p>
           </div>
 
-          {oauthNotice && (
-            <div
-              role="alert"
-              className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs font-medium text-destructive"
-            >
-              {oauthNotice}
-            </div>
-          )}
-
           <div className="flex w-full flex-col gap-3">
+            {/*
             <button
               type="button"
               disabled={loadingProvider !== null}
@@ -98,13 +90,14 @@ export default function AuthOptionsScreen() {
                 {loadingProvider === "apple" ? "Menghubungkan..." : "Lanjutkan dengan Apple"}
               </span>
             </button>
+            */}
 
             <button
               type="button"
               onClick={() => router.push("/auth/login")}
-              className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card text-card-foreground shadow-xs transition hover:bg-muted active:scale-[0.99]"
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-primary text-primary-foreground shadow-xs transition hover:bg-primary-dark active:scale-[0.99]"
             >
-              <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <Mail className="h-4 w-4" aria-hidden="true" />
               <span className="font-heading text-sm font-semibold">
                 Lanjutkan dengan Email
               </span>

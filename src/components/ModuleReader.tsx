@@ -11,7 +11,11 @@ import {
   BookOpen,
   Check,
   Clock,
+  Compass,
+  ExternalLink,
   FlaskConical,
+  ShieldAlert,
+  Target,
 } from "lucide-react";
 
 const DONE_SECTIONS_KEY = "lumif_module_sections_done";
@@ -75,10 +79,10 @@ export default function ModuleReader({ moduleId }: { moduleId: string }) {
         <ScreenHeader title="Modul Edukasi" subtitle="Materi belum tersedia" />
         <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center px-6 py-12 text-center">
           <h2 className="font-heading text-xl font-bold text-foreground">
-            Modul ini sedang disiapkan
+            Modul ini belum ditemukan
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Silakan kembali ke daftar modul untuk membuka Bab 1 sampai Bab 5 yang tersedia.
+            Silakan kembali ke daftar modul untuk membuka Bab 01 sampai Bab 16 yang tersedia.
           </p>
           <Link
             href="/modules"
@@ -223,9 +227,13 @@ export default function ModuleReader({ moduleId }: { moduleId: string }) {
           <article className="mx-auto w-full max-w-[68ch] rounded-3xl border border-border bg-card px-5 py-7 shadow-xs sm:px-10 sm:py-10">
             {/* Chapter Header */}
             <header className="border-b border-border pb-6">
-              <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
                 <span className="text-brand-orange-ink">
-                  MODUL {moduleData.number}
+                  BAB {String(moduleData.number).padStart(2, "0")}
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span className="rounded-lg bg-primary-light px-2.5 py-0.5 text-[11px] font-bold text-primary">
+                  Fase {moduleData.phase}: {moduleData.approachTag}
                 </span>
                 <span className="text-muted-foreground">·</span>
                 <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -234,13 +242,21 @@ export default function ModuleReader({ moduleId }: { moduleId: string }) {
                 </span>
               </div>
 
-              <h1 className="mt-2 font-heading text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-[30px]">
+              <h1 className="mt-2.5 font-heading text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-[30px]">
                 {moduleData.title}
               </h1>
 
               <p className="mt-3 text-base leading-[1.7] text-muted-foreground sm:text-[17px]">
                 {moduleData.summary}
               </p>
+
+              <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-border/80 bg-surface-soft/70 px-4 py-3 text-xs leading-relaxed text-foreground/90">
+                <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <div>
+                  <span className="font-bold text-foreground">Tujuan belajar: </span>
+                  <span>{moduleData.learningObjective}</span>
+                </div>
+              </div>
 
               {/* Mobile Quick Section Jumper */}
               <div className="mt-5 flex gap-2 overflow-x-auto pb-1 lg:hidden">
@@ -267,7 +283,7 @@ export default function ModuleReader({ moduleId }: { moduleId: string }) {
                     id={section.id}
                     className="scroll-mt-24 py-7 first:pt-6"
                   >
-                    <p className="text-xs font-bold uppercase tracking-wide text-brand-orange-ink">
+                    <p className="text-xs font-semibold text-primary">
                       {section.eyebrow}
                     </p>
                     <h2 className="mt-1 font-heading text-xl font-bold leading-snug text-foreground sm:text-[22px]">
@@ -316,7 +332,7 @@ export default function ModuleReader({ moduleId }: { moduleId: string }) {
                         }`}
                       >
                         <p
-                          className={`text-xs font-bold uppercase tracking-wide ${
+                          className={`text-xs font-bold ${
                             section.callout.tone === "orange"
                               ? "text-brand-orange-ink"
                               : "text-primary"
@@ -347,7 +363,7 @@ export default function ModuleReader({ moduleId }: { moduleId: string }) {
 
                     <div className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-border bg-surface-soft/70 p-4 sm:flex-row sm:items-center">
                       <div className="min-w-0">
-                        <span className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                        <span className="block text-xs font-semibold text-muted-foreground">
                           Langkah Kecil
                         </span>
                         <p className="mt-0.5 text-sm font-medium text-foreground">
@@ -373,6 +389,80 @@ export default function ModuleReader({ moduleId }: { moduleId: string }) {
                 );
               })}
             </div>
+
+            {/* Optional Connected Feature Card */}
+            {moduleData.practiceLink && (
+              <section className="mt-6 rounded-2xl border border-primary/25 bg-primary-light/50 p-5">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                  <div className="min-w-0">
+                    <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                      <Compass className="h-3.5 w-3.5" aria-hidden="true" />
+                      Praktik Opsional Terhubung
+                    </p>
+                    <h3 className="mt-1 font-heading text-sm font-bold text-foreground">
+                      {moduleData.practiceLink.label}
+                    </h3>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                      {moduleData.practiceLink.description}
+                    </p>
+                  </div>
+                  <Link
+                    href={moduleData.practiceLink.href}
+                    className="inline-flex min-h-[42px] shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 font-heading text-xs font-bold text-primary-foreground transition hover:bg-primary-dark"
+                  >
+                    <span>Buka Fitur</span>
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
+                </div>
+              </section>
+            )}
+
+            {/* Scientific Evidence, Limitations & References */}
+            <section className="mt-5 rounded-2xl border border-border bg-surface-soft/60 p-5 text-xs leading-relaxed">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-heading text-sm font-bold text-foreground">
+                  Sumber Ilmiah &amp; Batasan Bukti
+                </p>
+                <span className="rounded-lg bg-card px-2.5 py-1 text-[11px] font-semibold text-primary ring-1 ring-border">
+                  {moduleData.evidenceStrength}
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-start gap-2 rounded-xl bg-card px-3.5 py-2.5 text-muted-foreground ring-1 ring-border/70">
+                <ShieldAlert
+                  className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange-ink"
+                  aria-hidden="true"
+                />
+                <p>
+                  <strong className="text-foreground">Batasan: </strong>
+                  {moduleData.evidenceLimitation}
+                </p>
+              </div>
+
+              <ul className="mt-3 space-y-2">
+                {moduleData.references.map((ref) => (
+                  <li
+                    key={ref.url + ref.citation}
+                    className="rounded-xl bg-card px-3.5 py-2.5 ring-1 ring-border/70"
+                  >
+                    <a
+                      href={ref.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                    >
+                      <span>{ref.citation}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    </a>
+                    <p className="mt-0.5 text-muted-foreground">{ref.note}</p>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Catatan: Materi ini adalah konten edukasi swabantu berbasis prinsip CBT dan ACT, bukan layanan terapi klinis atau pengganti evaluasi psikolog/dokter.
+              </p>
+            </section>
 
             {/* Balanced, non-wrapping Chapter Completion Footer */}
             <footer className="mt-4 space-y-3 border-t border-border pt-7">
