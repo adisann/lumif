@@ -201,7 +201,7 @@ export default function DashboardScreen() {
               ? window.localStorage.getItem("lumif_demo_user")
               : null;
           if (!demoUser) {
-            router.replace("/auth/login");
+            router.replace("/login");
             return;
           }
           if (!hasChosenStarterPet()) {

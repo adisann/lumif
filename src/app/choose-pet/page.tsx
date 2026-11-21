@@ -47,7 +47,7 @@ export default function ChoosePetPage() {
               ? window.localStorage.getItem("lumif_demo_user")
               : null;
           if (!demoUser) {
-            router.replace("/auth/login");
+            router.replace("/login");
           }
         }
       } catch {
@@ -56,7 +56,7 @@ export default function ChoosePetPage() {
             ? window.localStorage.getItem("lumif_demo_user")
             : null;
         if (active && !demoUser) {
-          router.replace("/auth/login");
+          router.replace("/login");
         }
       }
     };

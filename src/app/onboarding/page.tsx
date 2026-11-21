@@ -246,7 +246,7 @@ export default function OnboardingScreen() {
       routine: answers.routine as OnboardingRoutine,
       frequency,
     });
-    router.push("/auth/login");
+    router.push("/login");
   };
 
   const goBack = () => {
@@ -258,7 +258,7 @@ export default function OnboardingScreen() {
     router.push("/");
   };
 
-  const skip = () => router.push("/auth");
+  const skip = () => router.push("/login");
 
   return (
     <main className="relative flex min-h-dvh w-full flex-col bg-surface-soft px-4 py-5 font-sans text-foreground sm:px-6 sm:py-8">
@@ -503,7 +503,7 @@ export default function OnboardingScreen() {
           Sudah punya akun?{" "}
           <button
             type="button"
-            onClick={() => router.push("/auth/login")}
+            onClick={() => router.push("/login")}
             className="font-bold text-primary hover:underline"
           >
             Masuk

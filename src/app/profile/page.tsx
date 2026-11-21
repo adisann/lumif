@@ -326,7 +326,7 @@ export default function ProfileScreen() {
     clearAllUserCaches();
 
     setIsLoggingOut(false);
-    router.replace("/auth/login");
+    router.replace("/login");
   };
 
   return (
