@@ -430,6 +430,49 @@ export function selectStarterEgg(
   return next;
 }
 
+/**
+ * Restores a user's saved companion from their Supabase account on a new browser/device
+ * without downgrading unlocked non-starter species to duck.
+ */
+export function hydratePetFromAccount(
+  speciesId: PetSpeciesId,
+  customNickname?: string
+): PetState {
+  const species = getPetSpecies(speciesId);
+  const current = loadPetState();
+  const nickname =
+    customNickname?.trim() ||
+    current.nicknamesBySpecies?.[species.id] ||
+    species.defaultNickname;
+
+  const nextUnlocked = current.unlockedSpecies.includes(species.id)
+    ? current.unlockedSpecies
+    : [...current.unlockedSpecies, species.id];
+
+  const next: PetState = {
+    ...current,
+    speciesId: species.id,
+    nickname,
+    xp: getSpeciesXp(current, species.id),
+    unlockedSpecies: nextUnlocked,
+    nicknamesBySpecies: {
+      ...(current.nicknamesBySpecies ?? {}),
+      [species.id]: nickname,
+    },
+  };
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(STARTER_CHOSEN_KEY, "1");
+      window.localStorage.removeItem(STARTER_PENDING_KEY);
+    } catch {
+      // Storage unavailable
+    }
+  }
+  savePetState(next);
+  return next;
+}
+
 export function getPetSpecies(speciesId?: string | null): PetSpecies {
   return PET_SPECIES.find((item) => item.id === speciesId) ?? PET_SPECIES[0];
 }
@@ -498,7 +541,7 @@ export function getPetCondition(
 
   return {
     label: "Butuh Sapaan",
-    description: "Sudah lebih dari 3 hari belum disapa. Klik Rawat di Lair.",
+    description: "Sudah lebih dari 3 hari belum disapa. Klik Rawat di Rumah Pet.",
     tone: "needs-care",
   };
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Lexend, Poppins } from "next/font/google";
 import "./globals.css";
 import ThemeInitializer from "@/components/ThemeInitializer";
+import ToastProvider from "@/components/ToastProvider";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -32,11 +33,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body
-        className="min-h-dvh w-full bg-surface-soft font-sans text-foreground"
+        className="min-h-svh w-full bg-surface-soft font-sans text-foreground"
         suppressHydrationWarning
       >
         <ThemeInitializer />
-        <div className="min-h-dvh w-full overflow-x-clip bg-surface-soft">
+        <ToastProvider />
+        <div className="min-h-svh w-full overflow-x-clip bg-surface-soft">
           {children}
         </div>
       </body>

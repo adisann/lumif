@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
+import ConfirmAlertDialog from "@/components/ConfirmAlertDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lumifToast } from "@/lib/toast";
 import {
   Select,
   SelectContent,
@@ -69,6 +71,17 @@ export default function FocusGuardPage() {
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [showRuleTester, setShowRuleTester] = useState(false);
   const [simUrl, setSimUrl] = useState("https://example.com");
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  const notifyStatus = useCallback((message: string) => {
+    setStatusMessage(message);
+    lumifToast.success(message);
+  }, []);
+
+  const notifyError = useCallback((message: string) => {
+    setErrorMessage(message);
+    lumifToast.error(message);
+  }, []);
 
   const checkBridge = useCallback(async () => {
     setIsCheckingExt(true);
@@ -130,10 +143,10 @@ export default function FocusGuardPage() {
       setConfig(res.state.config);
       saveLocalFocusGuardDraft(res.state.config);
       if (successText) {
-        setStatusMessage(successText);
+        notifyStatus(successText);
       }
     } else if (successText) {
-      setStatusMessage(`${successText} Aturan tersimpan di perangkat ini.`);
+      notifyStatus(`${successText} Aturan tersimpan di perangkat ini.`);
     }
   };
 
@@ -160,7 +173,7 @@ export default function FocusGuardPage() {
         setExtSnapshot(res.state);
         setConfig(res.state.config);
         saveLocalFocusGuardDraft(res.state.config);
-        setStatusMessage("Dijeda selama 10 menit.");
+        notifyStatus("Dijeda selama 10 menit.");
         return;
       }
     }
@@ -174,7 +187,7 @@ export default function FocusGuardPage() {
     e.preventDefault();
     const clean = normalizeDomainInput(domainInput);
     if (!clean) {
-      setErrorMessage("Masukkan nama situs yang valid, misalnya reddit.com.");
+      notifyError("Masukkan nama situs yang valid, misalnya reddit.com.");
       return;
     }
     setDomainInput("");
@@ -189,7 +202,7 @@ export default function FocusGuardPage() {
     e.preventDefault();
     const clean = normalizeKeywordInput(keywordInput);
     if (!clean) {
-      setErrorMessage("Kata kunci harus 2 hingga 48 karakter tanpa simbol khusus.");
+      notifyError("Kata kunci harus 2 hingga 48 karakter tanpa simbol khusus.");
       return;
     }
     setKeywordInput("");
@@ -204,7 +217,7 @@ export default function FocusGuardPage() {
     e.preventDefault();
     const clean = normalizeDomainInput(allowInput);
     if (!clean) {
-      setErrorMessage("Masukkan nama situs pengecualian yang valid.");
+      notifyError("Masukkan nama situs pengecualian yang valid.");
       return;
     }
     setAllowInput("");
@@ -235,13 +248,15 @@ export default function FocusGuardPage() {
       if (res.connected && res.state) {
         setExtSnapshot(res.state);
         setConfig(res.state.config);
-        setStatusMessage("Pengaturan Focus Guard direset ke awal.");
+        notifyStatus("Pengaturan Focus Guard direset ke awal.");
+        setIsResetConfirmOpen(false);
         return;
       }
     }
     const fresh = loadLocalFocusGuardDraft();
     setConfig(fresh);
-    setStatusMessage("Pengaturan Focus Guard direset ke awal.");
+    notifyStatus("Pengaturan Focus Guard direset ke awal.");
+    setIsResetConfirmOpen(false);
   };
 
   const { domains: effectiveDomains, keywords: effectiveKeywords } =
@@ -307,6 +322,7 @@ export default function FocusGuardPage() {
             type="button"
             onClick={() => void checkBridge()}
             disabled={isCheckingExt}
+            aria-label="Periksa koneksi ekstensi"
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
           >
             <RefreshCw
@@ -1025,7 +1041,7 @@ export default function FocusGuardPage() {
 
                 <button
                   type="button"
-                  onClick={() => void handleResetAll()}
+                  onClick={() => setIsResetConfirmOpen(true)}
                   className="flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 font-heading text-xs font-bold text-destructive transition hover:bg-destructive/15"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -1036,6 +1052,16 @@ export default function FocusGuardPage() {
           </div>
         </div>
       </main>
+
+      <ConfirmAlertDialog
+        open={isResetConfirmOpen}
+        variant="danger"
+        title="Reset Pengaturan Focus Guard?"
+        description="Semua situs dibatasi, kata kunci, allowlist, dan paket pilihan di perangkat ini akan dikembalikan ke setelan awal."
+        confirmLabel="Ya, Reset Semua"
+        onCancel={() => setIsResetConfirmOpen(false)}
+        onConfirm={handleResetAll}
+      />
 
       <BottomNav />
     </div>

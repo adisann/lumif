@@ -24,13 +24,14 @@ import {
   Gamepad2,
   PenLine,
   Shield,
+  ArrowUp,
 } from "lucide-react";
 import UrgeCheckInModal from "@/components/UrgeCheckInModal";
 import EmergencyFlow from "@/components/EmergencyFlow";
 
 const QUICK_ACTIONS = [
   {
-    title: "Lair Pendamping",
+    title: "Rumah Pendamping",
     desc: "Rawat & cek level pet",
     icon: PawPrint,
     href: "/lair",
@@ -92,7 +93,7 @@ const SIDEBAR_GROUPS = [
     label: "Alat Pemulihan",
     items: [
       { path: "/games", icon: Gamepad2, label: "Permainan" },
-      { path: "/lair", icon: PawPrint, label: "Lair Pet" },
+      { path: "/lair", icon: PawPrint, label: "Rumah Pet" },
       { path: "/modules", icon: BookOpen, label: "Modul CBT/ACT" },
       { path: "/routines", icon: ClipboardList, label: "Rutinitas" },
       { path: "/focus-guard", icon: Shield, label: "Focus Guard" },
@@ -121,6 +122,16 @@ export default function BottomNav() {
   const [showUrgeCheckIn, setShowUrgeCheckIn] = useState(false);
   const [showEmergency, setShowEmergency] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 320);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -153,7 +164,7 @@ export default function BottomNav() {
           />
 
           <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-4 px-5 pb-8 animate-slideUp md:pb-0">
-            <div className="flex w-full flex-col gap-3 rounded-3xl border border-border bg-card px-5 py-6 shadow-2xl">
+            <div className="flex max-h-[75dvh] w-full flex-col gap-3 overflow-y-auto rounded-3xl border border-border bg-card px-5 py-6 shadow-2xl">
               <div className="flex items-center justify-between px-2 pb-1">
                 <h3
                   id="quick-actions-title"
@@ -338,10 +349,25 @@ export default function BottomNav() {
         </div>
       </aside>
 
+      {/* Mobile Scroll-to-Top Pill */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Kembali ke atas"
+          className={`fixed bottom-[calc(74px+env(safe-area-inset-bottom))] z-40 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-bold text-foreground shadow-md transition hover:bg-muted active:scale-95 transform-gpu md:hidden ${
+            pathname.startsWith("/community") ? "left-4" : "right-4"
+          }`}
+        >
+          <ArrowUp className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+          <span>Ke Atas</span>
+        </button>
+      )}
+
       {/* Mobile Bottom Navigation Bar */}
       <nav
         aria-label="Navigasi seluler"
-        className="fixed bottom-0 left-0 z-50 w-full border-t border-border bg-card/95 px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 w-full border-t border-border bg-card px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_18px_rgba(0,0,0,0.06)] transform-gpu will-change-transform md:hidden"
       >
         <div className="mx-auto flex max-w-md items-center justify-between">
           {MOBILE_NAV_ITEMS.map((item) => {
@@ -354,11 +380,11 @@ export default function BottomNav() {
                   type="button"
                   onClick={() => setShowModal(true)}
                   aria-label="Buka aksi cepat"
-                  className="relative -mt-8 flex min-h-[44px] min-w-[44px] items-center justify-center"
+                  className="relative -mt-5 flex min-h-[44px] min-w-[44px] items-center justify-center"
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-card bg-[#EDBF45] shadow-md transition-transform hover:scale-105 active:scale-95">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-card bg-[#EDBF45] shadow-md transition-transform hover:scale-105 active:scale-95">
                     <Icon
-                      className="h-6 w-6 fill-current text-[#0F172A]"
+                      className="h-5 w-5 fill-current text-[#0F172A]"
                       aria-hidden="true"
                     />
                   </div>

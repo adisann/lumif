@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
+import ConfirmAlertDialog from "@/components/ConfirmAlertDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lumifToast } from "@/lib/toast";
 import {
   Select,
   SelectContent,
@@ -271,6 +273,7 @@ export default function RoutinesScreen() {
   const deleteRoutine = (id: string) => {
     persistRoutines(routines.filter((r) => r.id !== id));
     if (detailRoutineId === id) setDetailRoutineId(null);
+    lumifToast.info("Rutinitas dihapus");
   };
 
   const addRoutineItem = (
@@ -302,6 +305,7 @@ export default function RoutinesScreen() {
 
     persistRoutines([...routines, nextItem]);
     if (status === "done") awardPetReward(15, 10);
+    lumifToast.success("Rutinitas ditambahkan");
   };
 
   const handleAddList = (e: React.FormEvent) => {
@@ -316,10 +320,14 @@ export default function RoutinesScreen() {
     setShowNewListInput(false);
   };
 
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
   const resetAll = () => {
     persistRoutines(
       routines.map((r) => ({ ...r, completed: false, status: "todo" }))
     );
+    setIsResetConfirmOpen(false);
+    lumifToast.info("Checklist hari ini direset");
   };
 
   const filteredRoutines = useMemo(() => {
@@ -447,7 +455,7 @@ export default function RoutinesScreen() {
 
             <button
               type="button"
-              onClick={resetAll}
+              onClick={() => setIsResetConfirmOpen(true)}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-xs hover:bg-muted active:scale-95"
               aria-label="Reset checklist hari ini"
               title="Reset checklist"
@@ -1318,6 +1326,16 @@ export default function RoutinesScreen() {
           </div>
         </div>
       )}
+
+      <ConfirmAlertDialog
+        open={isResetConfirmOpen}
+        variant="warning"
+        title="Reset Checklist Hari Ini?"
+        description="Semua status rutinitas hari ini akan dikembalikan ke Akan Dilakukan."
+        confirmLabel="Ya, Reset"
+        onCancel={() => setIsResetConfirmOpen(false)}
+        onConfirm={resetAll}
+      />
 
       <BottomNav />
     </div>

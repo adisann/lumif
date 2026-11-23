@@ -39,6 +39,13 @@ export default function LumifMascot3D({
   const pausedRef = useRef(false);
   const waveBoostRef = useRef(0);
   const dragYawRef = useRef(0.35);
+  const targetYawRef = useRef(0.35);
+  const dragPitchRef = useRef(0);
+  const targetPitchRef = useRef(0);
+  const velocityYawRef = useRef(0);
+  const activePointerIdRef = useRef<number | null>(null);
+  const lastPointerPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragDistanceRef = useRef(0);
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -343,15 +350,18 @@ export default function LumifMascot3D({
       const resizeObserver = new ResizeObserver(handleResize);
       resizeObserver.observe(container);
 
-      const clock = new THREE.Clock();
+      const startTimeMs = performance.now();
+      let lastTimeMs = startTimeMs;
       let breathMix = 0;
 
       const animate = () => {
         if (disposed || !renderer) return;
         rafId = window.requestAnimationFrame(animate);
 
-        const dt = Math.min(clock.getDelta(), 0.05);
-        const elapsed = clock.elapsedTime;
+        const nowMs = performance.now();
+        const dt = Math.min(Math.max(0, (nowMs - lastTimeMs) / 1000), 0.05);
+        lastTimeMs = nowMs;
+        const elapsed = (nowMs - startTimeMs) / 1000;
 
         if (waveBoostRef.current > 0) {
           waveBoostRef.current = Math.max(0, waveBoostRef.current - dt * 1.3);
@@ -468,7 +478,18 @@ export default function LumifMascot3D({
           }
         }
 
-        pivot.rotation.y = dragYawRef.current + (activeMotion ? Math.sin(elapsed * 0.45) * 0.08 : 0);
+        if (activePointerIdRef.current === null && Math.abs(velocityYawRef.current) > 0.0002) {
+          targetYawRef.current += velocityYawRef.current;
+          velocityYawRef.current *= Math.pow(0.9, dt * 60);
+        }
+
+        const lerpFactor = Math.min(1, dt * 14);
+        dragYawRef.current += (targetYawRef.current - dragYawRef.current) * lerpFactor;
+        dragPitchRef.current += (targetPitchRef.current - dragPitchRef.current) * lerpFactor;
+
+        pivot.rotation.y =
+          dragYawRef.current + (activeMotion ? Math.sin(elapsed * 0.45) * 0.08 : 0);
+        pivot.rotation.x = dragPitchRef.current;
         renderer.render(scene, camera);
       };
 
@@ -490,14 +511,53 @@ export default function LumifMascot3D({
     }
   }, [modelUrl, mode, stage, isEggStage, tintHex, showHabitat, breathMixRef]);
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.buttons !== 1) return;
-    dragYawRef.current += e.movementX * 0.012;
-  };
-
   const triggerGreeting = () => {
     waveBoostRef.current = 1;
     if (isPaused) setIsPaused(false);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    activePointerIdRef.current = e.pointerId;
+    lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+    dragDistanceRef.current = 0;
+    velocityYawRef.current = 0;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore if pointer capture is unsupported
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointerIdRef.current !== e.pointerId) return;
+    const dx = e.clientX - lastPointerPosRef.current.x;
+    const dy = e.clientY - lastPointerPosRef.current.y;
+    lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+    dragDistanceRef.current += Math.hypot(dx, dy);
+
+    const yawDelta = dx * 0.014;
+    targetYawRef.current += yawDelta;
+    velocityYawRef.current = yawDelta * 0.75;
+    targetPitchRef.current = Math.max(
+      -0.35,
+      Math.min(0.45, targetPitchRef.current + dy * 0.008)
+    );
+  };
+
+  const handlePointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointerIdRef.current !== e.pointerId) return;
+    activePointerIdRef.current = null;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignore
+    }
+    if (e.type === "pointerup" && dragDistanceRef.current < 8) {
+      triggerGreeting();
+    }
   };
 
   return (
@@ -507,10 +567,15 @@ export default function LumifMascot3D({
       >
         <div
           ref={mountRef}
+          onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
-          onClick={triggerGreeting}
-          className="h-full w-full cursor-grab active:cursor-grabbing"
-          aria-label="Pendamping 3D Lumif. Klik untuk menyapa atau seret untuk memutar."
+          onPointerUp={handlePointerUpOrCancel}
+          onPointerCancel={handlePointerUpOrCancel}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="h-full w-full touch-none select-none cursor-grab active:cursor-grabbing"
+          aria-label="Pendamping 3D Lumif. Ketuk untuk menyapa atau seret untuk memutar."
         />
 
         {!isLoaded && !hasError && (
@@ -548,7 +613,9 @@ export default function LumifMascot3D({
           <button
             type="button"
             onClick={() => {
-              dragYawRef.current = 0.35;
+              targetYawRef.current = 0.35;
+              targetPitchRef.current = 0;
+              velocityYawRef.current = 0;
               waveBoostRef.current = 0.8;
             }}
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:bg-muted"
@@ -559,7 +626,7 @@ export default function LumifMascot3D({
         </div>
 
         <span className="text-[11px] font-medium text-muted-foreground">
-          Klik atau seret 3D
+          Geser untuk putar · Ketuk sapa
         </span>
       </div>
     </div>

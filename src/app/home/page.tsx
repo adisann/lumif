@@ -27,6 +27,7 @@ import RelapseResetFlow from "@/components/RelapseResetFlow";
 import StreakFlame from "@/components/StreakFlame";
 import Mascot3DSkeleton from "@/components/Mascot3DSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lumifToast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -408,6 +409,7 @@ export default function DashboardScreen() {
           )
         );
         setMissionError("Gagal menyimpan perubahan misi.");
+        lumifToast.error("Gagal menyimpan perubahan misi.");
       } else if (authUserId) {
         invalidateUserCache(authUserId, "dashboard");
         invalidateUserCache(authUserId, "insight");
@@ -908,7 +910,7 @@ export default function DashboardScreen() {
                       href="/lair"
                       className="inline-flex min-h-[44px] items-center rounded-xl border border-border px-3 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      Lair Pet
+                      Rumah Pet
                     </Link>
                   </div>
                 </div>
@@ -923,7 +925,15 @@ export default function DashboardScreen() {
                 {canClaimStreakBonus && cleanDays !== null && (
                   <button
                     type="button"
-                    onClick={() => claimStreakBonus(todayDate, cleanDays)}
+                    onClick={() => {
+                      const res = claimStreakBonus(todayDate, cleanDays);
+                      if (res.claimed) {
+                        lumifToast.success(
+                          `Bonus Streak ${cleanDays} Hari diklaim!`,
+                          `+${res.rewardCoins} Koin dan +20 XP ditambahkan untuk pendampingmu.`
+                        );
+                      }
+                    }}
                     className="mt-3 flex min-h-[40px] w-full items-center justify-center gap-2 rounded-xl bg-[#EDBF45] px-3 py-2 font-heading text-xs font-bold text-[#0F172A] shadow-xs transition hover:brightness-95"
                   >
                     <Coins className="h-4 w-4" aria-hidden="true" />

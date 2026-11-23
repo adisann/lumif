@@ -171,7 +171,13 @@
 /* Shared responsive navigation offset for tablet/desktop persistent sidebar */
 .lumif-with-nav {
   width: 100%;
-  min-height: 100dvh;
+  min-height: 100svh;
+}
+
+@media (max-width: 767px) {
+  .lumif-with-nav {
+    padding-bottom: 24px;
+  }
 }
 
 @media (min-width: 768px) {

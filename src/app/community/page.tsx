@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
+import ConfirmAlertDialog from "@/components/ConfirmAlertDialog";
 import { createClient } from "@/lib/supabase/client";
 import { invalidateUserCache, readUserCache, writeUserCache } from "@/lib/userCache";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lumifToast } from "@/lib/toast";
 import {
   Plus,
   MessageSquare,
@@ -277,11 +279,18 @@ export default function CommunityScreen() {
   const [replyDraftByPostId, setReplyDraftByPostId] = useState<
     Record<string, string>
   >({});
-  const [toast, setToast] = useState("");
+  const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(
+    null
+  );
 
   const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 1800);
+    if (/gagal|habis|login dulu|hanya bisa/i.test(message)) {
+      lumifToast.error(message);
+    } else if (/berhasil|ditambahkan|dikirim/i.test(message)) {
+      lumifToast.success(message);
+    } else {
+      lumifToast.info(message);
+    }
   };
 
   const mapRowToPost = (
@@ -441,10 +450,21 @@ export default function CommunityScreen() {
     return result;
   }, [filter, posts, query, sort]);
 
+  const isDemoModeSession = () =>
+    typeof window !== "undefined" &&
+    Boolean(window.localStorage.getItem("lumif_demo_user"));
+
   const handleCreatePost = async () => {
     const content = newPostContent.trim();
 
     if (!content) return;
+
+    const cleanTag = newPostTag.trim();
+    const tag = cleanTag
+      ? cleanTag.startsWith("#")
+        ? cleanTag
+        : `#${cleanTag}`
+      : "#ceritaku";
 
     setIsSavingPost(true);
 
@@ -455,16 +475,33 @@ export default function CommunityScreen() {
 
     if (userError || !user) {
       setIsSavingPost(false);
+      if (isDemoModeSession()) {
+        const demoPost: Post = {
+          id: `demo-post-${crypto.randomUUID()}`,
+          userId: null,
+          name: anonymousPost ? "Anonim Lumif" : "Kamu",
+          avatar: anonymousPost ? "🌱" : "🙂",
+          time: "Baru saja",
+          tag,
+          category: newPostCategory,
+          content,
+          reactions: [],
+          replies: [],
+          bookmarked: false,
+          ownPost: true,
+        };
+        setPosts((prev) => [demoPost, ...prev]);
+        setNewPostContent("");
+        setNewPostTag("#ceritaku");
+        setNewPostCategory("cerita");
+        setAnonymousPost(true);
+        setIsCreatingPost(false);
+        showToast("Postingan ditambahkan (Mode Demo) 🌱");
+        return;
+      }
       showToast("Sesi login habis. Login ulang dulu.");
       return;
     }
-
-    const cleanTag = newPostTag.trim();
-    const tag = cleanTag
-      ? cleanTag.startsWith("#")
-        ? cleanTag
-        : `#${cleanTag}`
-      : "#ceritaku";
 
     const { data, error } = await supabase
       .from("community_posts")
@@ -502,7 +539,9 @@ export default function CommunityScreen() {
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    const demoActive = (userError || !user) && isDemoModeSession();
+
+    if ((userError || !user) && !demoActive) {
       showToast("Login dulu untuk memberi reaction");
       return;
     }
@@ -555,6 +594,10 @@ export default function CommunityScreen() {
     );
 
     setActiveEmojiPickerPostId(null);
+
+    if (demoActive || !user) {
+      return;
+    }
 
     if (hasReacted) {
       const { error } = await supabase
@@ -623,6 +666,11 @@ export default function CommunityScreen() {
     setPosts((prev) => prev.filter((item) => item.id !== postId));
     setActiveMenuPostId(null);
 
+    if (postId.startsWith("demo-post-")) {
+      showToast("Postingan kamu dihapus");
+      return;
+    }
+
     const { error } = await supabase
       .from("community_posts")
       .delete()
@@ -658,7 +706,9 @@ export default function CommunityScreen() {
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    const demoActive = (userError || !user) && isDemoModeSession();
+
+    if ((userError || !user) && !demoActive) {
       showToast("Login dulu untuk membalas");
       return;
     }
@@ -685,6 +735,11 @@ export default function CommunityScreen() {
     }));
 
     setOpenedRepliesPostId(postId);
+
+    if (demoActive || !user) {
+      showToast("Balasan dikirim (Mode Demo) 🌱");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("community_replies")
@@ -955,7 +1010,10 @@ export default function CommunityScreen() {
                               {post.ownPost && (
                                 <button
                                   type="button"
-                                  onClick={() => handleDeletePost(post.id)}
+                                  onClick={() => {
+                                    setActiveMenuPostId(null);
+                                    setPendingDeletePostId(post.id);
+                                  }}
                                   className="flex min-h-[40px] w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-destructive hover:bg-destructive/10"
                                 >
                                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -1248,14 +1306,21 @@ export default function CommunityScreen() {
         </div>
       )}
 
-      {toast && (
-        <div
-          role="status"
-          className="fixed bottom-[calc(92px+env(safe-area-inset-bottom))] left-1/2 z-[10000] w-[calc(100%-40px)] max-w-sm -translate-x-1/2 rounded-2xl bg-[#111827] px-4 py-3 text-center text-xs font-bold text-white shadow-xl md:bottom-6"
-        >
-          {toast}
-        </div>
-      )}
+      <ConfirmAlertDialog
+        open={Boolean(pendingDeletePostId)}
+        variant="danger"
+        title="Hapus Postingan Ini?"
+        description="Postingan yang sudah dihapus tidak bisa dikembalikan."
+        confirmLabel="Ya, Hapus"
+        onCancel={() => setPendingDeletePostId(null)}
+        onConfirm={async () => {
+          const targetId = pendingDeletePostId;
+          setPendingDeletePostId(null);
+          if (targetId) {
+            await handleDeletePost(targetId);
+          }
+        }}
+      />
 
       <BottomNav />
     </div>

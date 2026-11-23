@@ -101,10 +101,10 @@ export default function EmergencyFlow({ isOpen, onClose }: EmergencyFlowProps) {
     >
       <div className="mx-auto w-full max-w-2xl">
       {step === "intro" && (
-        <section className="relative flex min-h-dvh flex-col px-6 pb-[calc(28px+env(safe-area-inset-bottom))] pt-[60px]">
+        <section className="relative flex min-h-dvh flex-col px-6 pb-[calc(28px+env(safe-area-inset-bottom))] pt-5">
           <Header title="Bantuan Darurat" onBack={goBack} />
 
-          <div className="flex flex-1 flex-col items-center justify-center pb-28 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center pb-16 pt-6 text-center">
             <div className="relative mb-7 flex h-[86px] w-full items-center justify-center">
               <span className="absolute -left-3 top-11 text-[42px] leading-none">☁️</span>
               <div className="flex h-[84px] w-[84px] items-center justify-center rounded-full border-[3px] border-black bg-[#16895F] shadow-[inset_0_0_0_8px_rgba(0,0,0,0.08)]">
@@ -131,18 +131,18 @@ export default function EmergencyFlow({ isOpen, onClose }: EmergencyFlowProps) {
       )}
 
       {step === "breathing" && (
-        <section className="relative flex min-h-dvh flex-col px-6 pb-10 pt-[60px]">
+        <section className="relative flex min-h-dvh flex-col px-6 pb-8 pt-5">
           <Header title="Bantuan Darurat" onBack={goBack} />
 
           <button
             onClick={closeFlow}
             aria-label="Tutup bantuan darurat"
-            className="absolute right-6 top-[60px] hidden h-9 w-9 items-center justify-center rounded-full bg-[#F4F4F4] text-[#111111] active:scale-95"
+            className="absolute right-6 top-5 hidden h-9 w-9 items-center justify-center rounded-full bg-[#F4F4F4] text-[#111111] active:scale-95"
           >
             <X className="h-5 w-5" />
           </button>
 
-          <div className="flex flex-1 flex-col items-center justify-center pt-12 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center pt-4 text-center">
             <BreathingOrb
               steps={BREATH_STEPS}
               active={isOpen && step === "breathing"}
@@ -153,10 +153,10 @@ export default function EmergencyFlow({ isOpen, onClose }: EmergencyFlowProps) {
       )}
 
       {step === "afterBreathing" && (
-        <section className="relative flex min-h-dvh flex-col px-6 pb-[calc(28px+env(safe-area-inset-bottom))] pt-[60px]">
+        <section className="relative flex min-h-dvh flex-col px-6 pb-[calc(28px+env(safe-area-inset-bottom))] pt-5">
           <Header title="Bantuan Darurat" onBack={goBack} />
 
-          <div className="flex flex-1 flex-col items-center justify-start pt-[115px] text-center">
+          <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
             <div className="mb-7 text-[64px] leading-none">🧘‍♀️</div>
             <h2 className="mb-3 max-w-[250px] font-poppins text-[27px] font-extrabold leading-[0.95] tracking-[-0.7px]">
               Bagus, kamu sudah tenang
@@ -196,10 +196,10 @@ export default function EmergencyFlow({ isOpen, onClose }: EmergencyFlowProps) {
       )}
 
       {step === "success" && (
-        <section className="relative flex min-h-dvh flex-col px-6 pb-[calc(28px+env(safe-area-inset-bottom))] pt-[60px]">
+        <section className="relative flex min-h-dvh flex-col px-6 pb-[calc(28px+env(safe-area-inset-bottom))] pt-5">
           <Header title="Bantuan Darurat" onBack={goBack} />
 
-          <div className="flex flex-1 flex-col items-center justify-center pb-28 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center pb-12 pt-6 text-center">
             <div className="mb-8 flex h-[92px] w-[92px] items-center justify-center text-[58px] leading-none">
               <ThumbsUp className="h-16 w-16 text-black" />
             </div>
@@ -215,7 +215,7 @@ export default function EmergencyFlow({ isOpen, onClose }: EmergencyFlowProps) {
             onClick={closeFlow}
             className="h-[51px] w-full rounded-[9px] bg-[#16895F] text-[15px] font-extrabold text-white transition active:scale-[0.98]"
           >
-            Kembali ke Dashboard
+            Kembali ke Beranda
           </button>
         </section>
       )}
@@ -226,11 +226,11 @@ export default function EmergencyFlow({ isOpen, onClose }: EmergencyFlowProps) {
 
 function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <header className="absolute left-0 top-[60px] flex w-full items-center justify-center px-6">
+    <header className="relative flex w-full shrink-0 items-center justify-center py-2">
       <button
         onClick={onBack}
         aria-label="Kembali"
-        className="absolute left-6 flex h-[34px] w-[34px] items-center justify-center rounded-full border border-[#E1E1E1] bg-white text-black transition active:scale-95"
+        className="absolute left-0 flex h-[34px] w-[34px] items-center justify-center rounded-full border border-[#E1E1E1] bg-white text-black transition active:scale-95"
       >
         <ArrowLeft className="h-[19px] w-[19px]" />
       </button>

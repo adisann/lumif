@@ -175,7 +175,7 @@ export default function PetLairPage() {
   return (
     <div className="lumif-with-nav relative flex min-h-dvh flex-col bg-surface-soft font-sans text-foreground">
       <ScreenHeader
-        title="Lair Pendamping"
+        title="Rumah Pendamping"
         subtitle="Lihat kondisi dan level pet satu per satu"
         rightAction={
           isLoadingPet ? (
@@ -191,7 +191,7 @@ export default function PetLairPage() {
 
       <main className="flex-1 px-4 pb-[calc(110px+env(safe-area-inset-bottom))] pt-5 md:px-8 md:pb-10">
         {isLoadingPet ? (
-          <div className="mx-auto w-full max-w-5xl space-y-5" aria-busy="true" aria-label="Memuat lair pendamping">
+          <div className="mx-auto w-full max-w-5xl space-y-5" aria-busy="true" aria-label="Memuat rumah pendamping">
             <div className="flex gap-2">
               <Skeleton className="h-11 w-32 rounded-xl" />
               <Skeleton className="h-11 w-36 rounded-xl" />
@@ -223,7 +223,7 @@ export default function PetLairPage() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Lair Saya ({ownedList.length})
+                Pet Saya ({ownedList.length})
               </button>
               <button
                 type="button"
@@ -285,7 +285,7 @@ export default function PetLairPage() {
                 ) : (
                   <div className="mb-3 flex min-h-[36px] items-center justify-center rounded-xl bg-surface-soft px-3 py-1.5 text-center">
                     <span className="text-xs font-semibold text-muted-foreground">
-                      1 Pet di Lair (Buka pet lainnya dengan Koin di tab Buka Pet Baru)
+                      1 Pet di Rumah (Buka pet lainnya dengan Koin di tab Buka Pet Baru)
                     </span>
                   </div>
                 )}
@@ -501,7 +501,7 @@ export default function PetLairPage() {
                     Semua Pet Sudah Terbuka!
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Kembali ke tab Lair Saya untuk merawat dan menaikkan level setiap pet.
+                    Kembali ke tab Pet Saya untuk merawat dan menaikkan level setiap pet.
                   </p>
                 </div>
               ) : (
@@ -585,7 +585,7 @@ export default function PetLairPage() {
           setBuySuccess(false);
           setTab("lair");
         }}
-        doneButtonLabel="Lihat di Lair Saya"
+        doneButtonLabel="Lihat di Pet Saya"
       />
 
       <BottomNav />

@@ -30,7 +30,7 @@ export default function MethodScreen() {
   };
 
   return (
-    <div className="relative flex h-full flex-col bg-background font-sans pt-5">
+    <div className="relative flex min-h-dvh flex-col bg-background font-sans pt-5">
       <TopNav
         onBack={() => router.back()}
         onSkip={() => router.push("/setup/reduction-target")}

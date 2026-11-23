@@ -16,6 +16,7 @@ export type BreathingStep = {
 type BreathingOrbProps = {
   steps: BreathingStep[];
   active?: boolean;
+  compact?: boolean;
   onPhaseChange?: (phase: BreathingPhase, stepIndex: number) => void;
   onBreathMix?: (mix: number) => void;
   onComplete: () => void;
@@ -24,6 +25,7 @@ type BreathingOrbProps = {
 export default function BreathingOrb({
   steps,
   active = true,
+  compact = false,
   onPhaseChange,
   onBreathMix,
   onComplete,
@@ -168,13 +170,21 @@ export default function BreathingOrb({
       <button
         type="button"
         onClick={advanceStep}
-        className="relative flex h-[280px] w-[280px] items-center justify-center rounded-full focus-visible:outline-2"
+        className={`relative flex items-center justify-center rounded-full focus-visible:outline-2 ${
+          compact
+            ? "h-[164px] w-[164px] lg:h-[280px] lg:w-[280px]"
+            : "h-[280px] w-[280px]"
+        }`}
         aria-label={`${currentStep.title}, sisa ${remainingSeconds} detik. Klik untuk lanjut ke tahap berikutnya.`}
       >
         {/* Outer Halo */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute h-[240px] w-[240px] rounded-full transition-colors duration-700"
+          className={`pointer-events-none rounded-full transition-colors duration-700 ${
+            compact
+              ? "absolute h-[142px] w-[142px] lg:h-[240px] lg:w-[240px]"
+              : "absolute h-[240px] w-[240px]"
+          }`}
           style={{
             backgroundColor: palette.outer,
             opacity: 0.45 + breathMix * 0.45,
@@ -186,7 +196,11 @@ export default function BreathingOrb({
         {/* Middle Ring */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute h-[192px] w-[192px] rounded-full transition-colors duration-700"
+          className={`pointer-events-none rounded-full transition-colors duration-700 ${
+            compact
+              ? "absolute h-[114px] w-[114px] lg:h-[192px] lg:w-[192px]"
+              : "absolute h-[192px] w-[192px]"
+          }`}
           style={{
             backgroundColor: palette.middle,
             opacity: 0.78 + breathMix * 0.2,
@@ -197,14 +211,22 @@ export default function BreathingOrb({
         {/* Core Breathing Sphere + 60fps Progress Arc */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute flex h-[146px] w-[146px] items-center justify-center rounded-full shadow-lg transition-colors duration-700"
+          className={`pointer-events-none absolute flex items-center justify-center rounded-full shadow-lg transition-colors duration-700 ${
+            compact
+              ? "h-[90px] w-[90px] lg:h-[146px] lg:w-[146px]"
+              : "h-[146px] w-[146px]"
+          }`}
           style={{
             backgroundColor: palette.core,
             transform: `scale(${coreScale})`,
           }}
         >
           <svg
-            className="h-[146px] w-[146px] -rotate-90"
+            className={`-rotate-90 ${
+              compact
+                ? "h-[90px] w-[90px] lg:h-[146px] lg:w-[146px]"
+                : "h-[146px] w-[146px]"
+            }`}
             viewBox="0 0 146 146"
           >
             <circle
@@ -230,33 +252,51 @@ export default function BreathingOrb({
         </span>
 
         <span className="relative z-10 flex flex-col items-center text-white select-none">
-          <span className="font-heading text-base font-bold tracking-tight sm:text-lg">
+          <span
+            className={`font-heading font-bold tracking-tight ${
+              compact ? "text-xs lg:text-lg" : "text-base sm:text-lg"
+            }`}
+          >
             {currentStep.title}
           </span>
-          <span className="mt-1 font-heading text-4xl font-extrabold leading-none tabular-nums">
+          <span
+            className={`mt-0.5 font-heading font-extrabold leading-none tabular-nums ${
+              compact ? "text-2xl lg:mt-1 lg:text-4xl" : "mt-1 text-4xl"
+            }`}
+          >
             {remainingSeconds}
           </span>
         </span>
       </button>
 
       {/* Instruction Copy */}
-      <div className="mt-5 text-center">
+      <div className={compact ? "mt-2 text-center lg:mt-5" : "mt-5 text-center"}>
         <h2
-          className="font-heading text-2xl font-bold tracking-tight transition-colors duration-500"
+          className={`font-heading font-bold tracking-tight transition-colors duration-500 ${
+            compact ? "text-lg lg:text-2xl" : "text-2xl"
+          }`}
           style={{ color: palette.text }}
         >
           {currentStep.helper}
         </h2>
 
         {currentStep.subtitle && (
-          <p className="mt-1.5 max-w-xs text-sm leading-relaxed text-muted-foreground">
+          <p
+            className={`max-w-xs leading-relaxed text-muted-foreground ${
+              compact ? "mt-0.5 text-xs lg:mt-1.5 lg:text-sm" : "mt-1.5 text-sm"
+            }`}
+          >
             {currentStep.subtitle}
           </p>
         )}
       </div>
 
       {/* Smooth Continuous Phase Progress Bars */}
-      <div className="mt-6 flex items-center justify-center gap-2">
+      <div
+        className={`flex items-center justify-center gap-2 ${
+          compact ? "mt-3 lg:mt-6" : "mt-6"
+        }`}
+      >
         {steps.map((step, index) => {
           const widthPct =
             index < safeStepIndex
@@ -288,11 +328,17 @@ export default function BreathingOrb({
       </div>
 
       {/* Interactive Controls */}
-      <div className="mt-5 flex items-center gap-3">
+      <div
+        className={`flex items-center gap-3 ${
+          compact ? "mt-3 lg:mt-5" : "mt-5"
+        }`}
+      >
         <button
           type="button"
           onClick={() => setIsPaused((prev) => !prev)}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-xs font-bold text-foreground shadow-xs transition hover:bg-muted"
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-xs font-bold text-foreground shadow-xs transition hover:bg-muted ${
+            compact ? "min-h-[38px] lg:min-h-[44px]" : "min-h-[44px]"
+          }`}
         >
           {isPaused ? (
             <>
@@ -310,14 +356,20 @@ export default function BreathingOrb({
         <button
           type="button"
           onClick={resetAll}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-xs font-bold text-muted-foreground shadow-xs transition hover:bg-muted hover:text-foreground"
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-xs font-bold text-muted-foreground shadow-xs transition hover:bg-muted hover:text-foreground ${
+            compact ? "min-h-[38px] lg:min-h-[44px]" : "min-h-[44px]"
+          }`}
         >
           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
           <span>Ulang</span>
         </button>
       </div>
 
-      <p className="mt-3 text-xs font-semibold text-muted-foreground">
+      <p
+        className={`text-xs font-semibold text-muted-foreground ${
+          compact ? "mt-2 lg:mt-3" : "mt-3"
+        }`}
+      >
         Tahap {safeStepIndex + 1} dari {steps.length}
       </p>
     </div>

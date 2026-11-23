@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import ScreenHeader from "@/components/ScreenHeader";
+import ConfirmAlertDialog from "@/components/ConfirmAlertDialog";
 import { createClient } from "@/lib/supabase/client";
 import { clearAllUserCaches, readUserCache, writeUserCache } from "@/lib/userCache";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lumifToast } from "@/lib/toast";
 import {
   DEFAULT_ONBOARDING,
   loadOnboardingData,
@@ -209,6 +211,7 @@ export default function ProfileScreen() {
 
       setDisplayName(cleaned);
       setStatusMessage("Nama tampilan berhasil diperbarui.");
+      lumifToast.success("Nama tampilan berhasil diperbarui.");
       setIsEditProfileOpen(false);
     } catch {
       if (typeof window !== "undefined") {
@@ -249,9 +252,12 @@ export default function ProfileScreen() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        setErrorMessage(error.message || "Gagal mengubah kata sandi.");
+        const msg = error.message || "Gagal mengubah kata sandi.";
+        setErrorMessage(msg);
+        lumifToast.error(msg);
       } else {
         setStatusMessage("Kata sandi berhasil diperbarui.");
+        lumifToast.success("Kata sandi berhasil diperbarui.");
         setIsPasswordModalOpen(false);
         setNewPassword("");
       }
@@ -307,8 +313,13 @@ export default function ProfileScreen() {
     setStatusMessage(
       `Pet pendamping diperbarui: ${cleanedNickname} (${species.name}).`
     );
+    lumifToast.success(
+      `Pet pendamping diperbarui: ${cleanedNickname} (${species.name}).`
+    );
     setIsPetModalOpen(false);
   };
+
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   const handleLogout = async () => {
     setErrorMessage("");
@@ -419,7 +430,7 @@ export default function ProfileScreen() {
 
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={() => setIsLogoutConfirmOpen(true)}
               disabled={isLoggingOut}
               className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#D82C1C] font-heading text-sm font-bold text-white shadow-xs transition hover:bg-[#B92214] active:scale-99 disabled:opacity-50"
             >
@@ -806,6 +817,17 @@ export default function ProfileScreen() {
           setBuySuccess(false);
         }}
         onConfirm={handleConfirmUnlockPet}
+      />
+
+      <ConfirmAlertDialog
+        open={isLogoutConfirmOpen}
+        variant="warning"
+        title="Keluar dari Akun?"
+        description="Kamu bisa masuk kembali kapan saja dengan akunmu atau Mode Demo."
+        confirmLabel="Ya, Keluar"
+        isLoading={isLoggingOut}
+        onCancel={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={handleLogout}
       />
 
       <BottomNav />

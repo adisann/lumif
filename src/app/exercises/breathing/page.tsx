@@ -22,7 +22,7 @@ import {
 
 const LumifMascot3D = dynamic(() => import("@/components/LumifMascot3D"), {
   ssr: false,
-  loading: () => <Mascot3DSkeleton heightClass="h-[220px]" />,
+  loading: () => <Mascot3DSkeleton heightClass="h-[168px] sm:h-[200px] lg:h-[230px]" />,
 });
 
 const BREATHING_STEPS: BreathingStep[] = [
@@ -144,13 +144,14 @@ export default function BreathingExerciseScreen() {
         onBack={() => router.back()}
       />
 
-      <section className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 py-8">
-        <div className="grid w-full grid-cols-1 items-center gap-8 lg:grid-cols-12">
+      <section className="mx-auto flex w-full max-w-5xl flex-1 items-start justify-center px-4 py-3 lg:items-center lg:px-6 lg:py-8">
+        <div className="grid w-full grid-cols-1 items-center gap-4 lg:grid-cols-12 lg:gap-8">
           <div className="flex flex-col items-center lg:col-span-7">
             <BreathingOrb
               key={sessionRunKey}
               steps={BREATHING_STEPS}
               active={!isFinished}
+              compact
               onPhaseChange={(phase) => setActivePhase(phase)}
               onBreathMix={(mix) => {
                 breathMixRef.current = mix;
@@ -159,21 +160,27 @@ export default function BreathingExerciseScreen() {
             />
           </div>
 
-          <div className="rounded-3xl border border-border bg-card p-5 shadow-xs lg:col-span-5">
+          <div className="rounded-3xl border border-border bg-card p-3.5 shadow-xs sm:p-5 lg:col-span-5">
             {!isPetReady ? (
-              <div className="space-y-3" aria-busy="true" aria-label="Memuat pendamping napas">
-                <Skeleton className="h-5 w-48" />
-                <Skeleton className="h-3.5 w-60" />
-                <Mascot3DSkeleton heightClass="h-[220px]" />
+              <div className="space-y-2.5" aria-busy="true" aria-label="Memuat pendamping napas">
+                <Skeleton className="h-4 w-44" />
+                <Skeleton className="h-3 w-56" />
+                <Mascot3DSkeleton heightClass="h-[168px] sm:h-[200px] lg:h-[230px]" />
               </div>
             ) : (
               <>
-                <h3 className="font-heading text-base font-bold text-card-foreground">
-                  Bernapas Bersama {petState.nickname}
-                </h3>
-                <p className="mb-3 mt-1 text-xs text-muted-foreground">
-                  {species.name} · Lv. {progress.level} ({progress.stageLabel}). Ikuti gerakan perlahan saat menarik dan menghembuskan napas.
-                </p>
+                <div className="mb-2 flex items-baseline justify-between gap-2 lg:block lg:mb-3">
+                  <h3 className="font-heading text-sm font-bold text-card-foreground sm:text-base">
+                    Bernapas Bersama {petState.nickname}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground lg:mt-1 lg:text-xs">
+                    {species.name} ·{" "}
+                    {species.hasEvolution
+                      ? `Lv. ${progress.level} (${progress.stageLabel})`
+                      : `Lv. ${progress.level}`}
+                    <span className="hidden lg:inline">. Ikuti gerakan perlahan saat menarik dan menghembuskan napas.</span>
+                  </p>
+                </div>
                 <LumifMascot3D
                   modelUrl={asset.modelUrl}
                   stage={progress.stage}
@@ -181,6 +188,7 @@ export default function BreathingExerciseScreen() {
                   mode="breathing"
                   breathPhase={activePhase}
                   breathMixRef={breathMixRef}
+                  heightClass="h-[168px] sm:h-[200px] lg:h-[230px]"
                 />
               </>
             )}

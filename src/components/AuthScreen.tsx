@@ -22,8 +22,8 @@ import LumifLogo from "@/components/LumifLogo";
 import {
   PET_SPECIES,
   hasChosenStarterPet,
+  hydratePetFromAccount,
   markStarterChoicePending,
-  selectStarterEgg,
   type PetSpeciesId,
 } from "@/lib/pets";
 import {
@@ -82,7 +82,7 @@ export default function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
           petSpecies &&
           PET_SPECIES.some((species) => species.id === petSpecies)
         ) {
-          selectStarterEgg(petSpecies as PetSpeciesId, petName);
+          hydratePetFromAccount(petSpecies as PetSpeciesId, petName);
           router.replace("/home");
           return;
         }

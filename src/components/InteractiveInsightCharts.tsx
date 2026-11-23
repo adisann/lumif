@@ -224,7 +224,13 @@ export function CheckInTrendChart({
 
           <div className="h-[220px] w-full">
             {isClient ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={0}
+                minHeight={200}
+                initialDimension={{ width: 360, height: 220 }}
+              >
                 <BarChart
                   data={data}
                   barGap={8}
@@ -407,7 +413,13 @@ export function RoutineCompletionChart({ data }: { data: RoutineDatum[] }) {
 
       <div className="h-[220px] w-full">
         {isClient ? (
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+            minHeight={200}
+            initialDimension={{ width: 360, height: 220 }}
+          >
             <LineChart
               data={data}
               margin={{ top: 16, right: 8, left: -16, bottom: 0 }}

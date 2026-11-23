@@ -22,7 +22,7 @@ export default function ReductionTargetScreen() {
   };
 
   return (
-    <div className="relative flex h-full flex-col bg-background font-sans pt-5">
+    <div className="relative flex min-h-dvh flex-col bg-background font-sans pt-5">
       <TopNav
         onBack={() => router.back()}
         onSkip={() => router.push("/home")}
@@ -30,7 +30,7 @@ export default function ReductionTargetScreen() {
       />
       
       <div className="flex flex-1 flex-col items-center justify-center px-6 pt-6">
-        <div className="absolute top-[107px] flex w-full justify-center">
+        <div className="mb-8 flex w-full justify-center">
           <ProgressDots total={6} current={4} />
         </div>
 
@@ -63,7 +63,7 @@ export default function ReductionTargetScreen() {
         <button
           type="button"
           onClick={handleNext}
-          className="absolute bottom-0 left-6 mb-6 flex h-13 w-[calc(100%-48px)] cursor-pointer items-center justify-center gap-3 rounded-2xl bg-primary shadow-md transition hover:bg-primary-dark active:scale-[0.98]"
+          className="mt-8 mb-6 flex h-13 w-full cursor-pointer items-center justify-center gap-3 rounded-2xl bg-primary shadow-md transition hover:bg-primary-dark active:scale-[0.98]"
         >
           <span className="font-poppins text-base font-bold text-white tracking-tight">
             Selanjutnya

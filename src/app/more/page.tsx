@@ -180,12 +180,12 @@ const DIRECTORY_SECTIONS: DirectorySection[] = [
     subtitle: "Dukungan sosial, rawat pet, dan pengaturan personal",
     items: [
       {
-        title: "Lair Pendamping",
+        title: "Rumah Pendamping",
         description: "Rawat pet, pantau XP, koin, dan evolusi pendamping 3D.",
         meta: "Pet 3D",
         href: "/lair",
         icon: PawPrint,
-        keywords: "lair pet peliharaan 3d xp koin evolusi",
+        keywords: "rumah lair pet peliharaan 3d xp koin evolusi",
       },
       {
         title: "Komunitas",

@@ -27,7 +27,7 @@ export default function PetPurchaseConfirmDialog({
   onCancel,
   onConfirm,
   onDoneAfterPurchase,
-  doneButtonLabel = "Lihat di Lair",
+  doneButtonLabel = "Lihat di Rumah Pet",
 }: PetPurchaseConfirmDialogProps) {
   const pet = petId ? getPetSpecies(petId) : null;
   const remainingCoins = pet ? Math.max(0, currentCoins - pet.unlockCost) : currentCoins;
